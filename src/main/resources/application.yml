@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: maid-booking
+
+server:
+  port: 8080
+
+app:
+  time-zone: Asia/Kolkata
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
