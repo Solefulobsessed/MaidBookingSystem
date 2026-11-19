@@ -24,6 +24,7 @@ Requires JDK 17 or newer and Maven 3.9+.
 
 Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 
-- [ ] PR-01 Project skeleton
+- [x] PR-01 Project skeleton
+- [ ] PR-02 Error model
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
