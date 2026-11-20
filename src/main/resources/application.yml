@@ -26,6 +26,11 @@ app:
   recurring:
     charge-hours-before: 24
     charge-interval-ms: 900000
+  cancellation:
+    policy: time-based
+    full-refund-hours: 4
+    partial-refund-hours: 1
+    partial-refund-percent: 50
   instant:
     promise-minutes: 15
   allocation:
