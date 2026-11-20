@@ -4,6 +4,11 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 48 | `JobLifecycleService` lives in `booking` and moves the maid's live state through a new `LiveStateService.followJob` (EN_ROUTE → ON_JOB → IDLE) | `booking` may depend on `supply`; maids still can't set EN_ROUTE / ON_JOB themselves |
+| 48 | Setting off is checked first (job ASSIGNED, maid checked in and free); a failure changes neither the job nor the maid | Avoids a job EN_ROUTE with a maid still IDLE, or the reverse |
+| 48 | A wrong OTP is a 400 and leaves both job and maid EN_ROUTE, so she can try again | The OTP is typed by hand; a typo shouldn't end the visit |
+| 48 | On completion the maid is IDLE in the job's zone | That's where she is, so instant dispatch measures her travel from there |
+| 48 | Each step runs inside `JobGuard` | A cancellation can't slip in between the "can she set off?" check and EN_ROUTE |
 | 47 | Drop-outs live in `DropOutService` (cancellation package), not `MaidService.dropJob` as the plan names it | The spec also says `supply` knows nothing about bookings; dropping a job needs jobs, bookings and allocation |
 | 47 | `Job` remembers every maid who dropped it (`droppedBy`); every later allocation (immediate, payment, retry job) excludes them | Otherwise the retry job could hand the job straight back to the maid who just said she can't come |
 | 47 | Any `ShiftChanged` CAPACITY_REMOVED (leave, absence, ending a shift early) re-allocates the live jobs on that shift | One listener covers every way a shift stops counting; leave is the main case |

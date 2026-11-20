@@ -62,6 +62,15 @@ public class LiveStateService {
         });
     }
 
+    /** Moves only jobs make: EN_ROUTE when she sets off, ON_JOB once started, IDLE in the job's zone when done. */
+    public MaidLiveState followJob(String maidId, LiveStatus target, String zoneId) {
+        return locks.callWith(LockKey.maid(maidId), () -> {
+            MaidLiveState state = liveStates.getOrOffline(maidId);
+            state.moveTo(target, zoneId, LocalDateTime.now(clock));
+            return liveStates.save(state);
+        });
+    }
+
     public MaidLiveState get(String maidId) {
         maids.getById(maidId);
         return liveStates.getOrOffline(maidId);
