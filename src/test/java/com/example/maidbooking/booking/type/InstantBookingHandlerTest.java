@@ -113,4 +113,13 @@ class InstantBookingHandlerTest {
                 .isInstanceOf(ValidationException.class).hasMessageContaining("needs a duration");
         assertThatThrownBy(() -> handler.validate(instant(45), NOW)).isInstanceOf(ValidationException.class);
     }
+
+    @Test
+    void cannotChooseTheMaid() {
+        CreateBookingRequest withMaid = new CreateBookingRequest(BookingType.INSTANT, "c-1", "Koramangala", "Flat 302",
+                ServiceType.CLEANING, null, null, 60, null, "m-7f3a");
+
+        assertThatThrownBy(() -> handler.validate(withMaid, NOW))
+                .isInstanceOf(ValidationException.class).hasMessageContaining("scheduled slot");
+    }
 }

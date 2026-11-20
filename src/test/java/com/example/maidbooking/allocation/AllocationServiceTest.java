@@ -175,4 +175,20 @@ class AllocationServiceTest {
         assertThat(service(bestFit).dispatch(request("j-1", TEN_TO_ELEVEN, null), MON.atTime(9, 45))).isEmpty();
         assertThat(assignments.findLiveByReference("j-1")).isEmpty();
     }
+
+    @Test
+    void allocateOnlyGivesThePreferredMaidEvenIfAnotherFitsBetter() {
+        Assignment held = service(bestFit).allocateOnly("m-02", request("j-1", TEN_TO_ELEVEN, "m-02"),
+                AssignmentStatus.HELD).orElseThrow();
+
+        assertThat(held.maidId()).as("best fit alone would pick m-01").isEqualTo("m-02");
+        assertThat(held.status()).isEqualTo(AssignmentStatus.HELD);
+    }
+
+    @Test
+    void allocateOnlyFindsNobodyWhenThePreferredMaidIsBusy() {
+        assertThat(service(bestFit).allocateOnly("m-01", request("j-1", slot("09:00", "10:00"), "m-01"),
+                AssignmentStatus.HELD)).isEmpty();
+        assertThat(assignments.findLiveByMaid("m-02")).isEmpty();
+    }
 }

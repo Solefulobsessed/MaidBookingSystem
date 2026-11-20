@@ -55,6 +55,9 @@ public class InstantBookingHandler implements BookingTypeHandler {
             throw new ValidationException("An instant booking needs a duration");
         }
         JobDurations.validate(request.durationMinutes());
+        if (request.preferredMaidId() != null) {
+            throw new ValidationException("Instant bookings send the nearest maid; book a scheduled slot to choose one");
+        }
     }
 
     @Override
