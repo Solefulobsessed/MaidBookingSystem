@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 16 | `reserve` checks every bucket in both pools first, then reserves; the 409 lists **every** bucket that lacks room | All or nothing, and the client learns exactly which times are full |
+| 16 | A reservation stores the minutes it took per bucket; `release` gives back exactly those | Release can't drift from reserve even if shifts change in between |
+| 16 | `holdUntil = null` means a hold with no expiry | Spec: later recurring jobs are held without expiring |
+| 16 | Releasing twice or committing a released reservation is an `INVALID_STATE` error, not a silent no-op | A double release would hand out minutes twice; failing loudly protects the ledger |
 | 15 | `ShiftService` publishes `ShiftChanged` **after** releasing the maid lock | Listeners (the ledger) take the zone lock, which must come before the maid lock; publishing inside would be a lock-order violation (a test proves it) |
 | 15 | The ledger listens synchronously (`@EventListener`) | Capacity is updated before the shift API call returns, so slots are never shown from stale capacity; easy to test |
 | 15 | Pools come from the maid's skills at the time of the event | Skills don't change after onboarding yet; if editing skills is added, it must re-publish her future shifts |
