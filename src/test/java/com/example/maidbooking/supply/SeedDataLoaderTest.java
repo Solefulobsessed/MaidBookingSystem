@@ -45,9 +45,9 @@ class SeedDataLoaderTest {
         }
 
         @Test
-        void everyMaidHasShiftsOnEveryWorkingDayOfTheComingWeek() {
+        void everyMaidHasShiftsOnEveryWorkingDayOfTheNextTwoWeeks() {
             LocalDate today = LocalDate.now(clock);
-            for (LocalDate day = today; day.isBefore(today.plusDays(7)); day = day.plusDays(1)) {
+            for (LocalDate day = today; day.isBefore(today.plusDays(14)); day = day.plusDays(1)) {
                 LocalDate date = day;
                 long expected = date.getDayOfWeek() == DayOfWeek.SUNDAY ? 0 : 12;
                 assertThat(maids.findAll().stream().filter(m -> !shifts.findByMaidAndDate(m.id(), date).isEmpty()))

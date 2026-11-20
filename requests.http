@@ -1,0 +1,169 @@
+### Maid booking — end-to-end demo
+#
+# Start the app (`mvn spring-boot:run`; the demo profile seeds 3 zones, 12 maids and 14 days of shifts), then run
+# these requests top to bottom in IntelliJ's HTTP client (the `> {% ... %}` blocks save ids for later requests).
+# The same walkthrough runs as an automated test: src/test/java/com/example/maidbooking/demo/DemoScriptTest.java
+#
+# Set @day to a Monday–Saturday at least two days from today (the seeded maids are off on Sundays).
+
+@base = http://localhost:8080/api/v1
+@day = 2026-11-24
+
+### 0. Is it up? (Swagger UI: http://localhost:8080/swagger-ui.html)
+GET http://localhost:8080/actuator/health
+
+###############################################################################
+# 1. Discover: the slot grid (OPEN / FEW_LEFT / FULL with prices) and the maids free at 09:00
+###############################################################################
+
+### 1a. Premium cleaning slots in Koramangala
+GET {{base}}/slots?locality=koramangala&serviceType=CLEANING&date={{day}}&durationMinutes=60&tier=PREMIUM
+
+### 1b. Female maids rated 4.5+ who are free at 09:00 (preferred-maid mode)
+GET {{base}}/maids/search?locality=koramangala&serviceType=CLEANING&start={{day}}T09:00&durationMinutes=60&gender=FEMALE&minRating=4.5
+
+###############################################################################
+# 2. Book Lakshmi for 09:00, pay, preview the refund, cancel
+###############################################################################
+
+### 2a. Scheduled booking with a preferred maid: capacity is reserved and Lakshmi is held for 10 minutes
+POST {{base}}/bookings
+Content-Type: application/json
+
+{ "type": "SCHEDULED", "customerId": "c-demo", "locality": "koramangala", "address": "Flat 302",
+  "serviceType": "CLEANING", "tier": "PREMIUM", "start": "{{day}}T09:00", "durationMinutes": 60,
+  "preferredMaidId": "m-lakshmi" }
+
+> {% client.global.set("jobId", response.body.jobs[0].jobId); %}
+
+### 2b. Pay by UPI → ASSIGNED to Lakshmi, with the OTP
+POST {{base}}/jobs/{{jobId}}/payments
+Content-Type: application/json
+Idempotency-Key: demo-pay-1
+
+{ "method": "UPI", "details": { "vpa": "user@okbank" } }
+
+### 2c. Same request again (a phone retry): same answer, Idempotent-Replayed: true, charged once
+POST {{base}}/jobs/{{jobId}}/payments
+Content-Type: application/json
+Idempotency-Key: demo-pay-1
+
+{ "method": "UPI", "details": { "vpa": "user@okbank" } }
+
+### 2d. What would I get back? (100% more than 4 h before, 50% from 4 h to 1 h, 0% after)
+GET {{base}}/jobs/{{jobId}}/cancellation-quote
+
+### 2e. Cancel: refund first, then Lakshmi and the slot are freed (re-run 1a: 09:00 has room again)
+POST {{base}}/jobs/{{jobId}}/cancel
+
+###############################################################################
+# 3. A standard booking: a declined payment, a good one, then the maid drops out
+###############################################################################
+
+### 3a. Book 10:00 with a "female maid" requirement (the platform picks the maid after payment)
+POST {{base}}/bookings
+Content-Type: application/json
+
+{ "type": "SCHEDULED", "customerId": "c-demo", "locality": "koramangala", "address": "Flat 302",
+  "serviceType": "CLEANING", "start": "{{day}}T10:00", "durationMinutes": 60,
+  "preferences": { "gender": "FEMALE" } }
+
+> {% client.global.set("job2", response.body.jobs[0].jobId); %}
+
+### 3b. A UPI ID containing "decline" is declined by the mock gateway → 402, the job stays payable
+POST {{base}}/jobs/{{job2}}/payments
+Content-Type: application/json
+Idempotency-Key: demo-pay-2
+
+{ "method": "UPI", "details": { "vpa": "decline@okbank" } }
+
+### 3c. Pay by card instead (new key) → a female maid is assigned
+POST {{base}}/jobs/{{job2}}/payments
+Content-Type: application/json
+Idempotency-Key: demo-pay-3
+
+{ "method": "CARD", "details": { "number": "4242 4242 4242 4242", "expiry": "2030-12" } }
+
+> {% client.global.set("maid2", response.body.maid.id); %}
+
+### 3d. She can't make it: the job goes straight to another maid; the slot and payment are untouched
+POST {{base}}/maids/{{maid2}}/jobs/{{job2}}/drop
+
+###############################################################################
+# 4. A weekly series with a saved payment method
+###############################################################################
+
+### 4a. Every week on @day's weekday at 08:00 in HSR Layout: the first 14 days are reserved all-or-nothing
+#      (change "TUESDAY" to @day's weekday)
+POST {{base}}/bookings
+Content-Type: application/json
+
+{ "type": "RECURRING", "customerId": "c-demo", "locality": "hsr layout", "address": "Villa 12",
+  "serviceType": "CLEANING",
+  "recurrence": { "daysOfWeek": ["TUESDAY"], "startTime": "08:00", "durationMinutes": 60,
+                  "startDate": "{{day}}", "endDate": "2027-02-28" },
+  "savedPayment": { "method": "UPI", "details": { "vpa": "user@okbank" } } }
+
+> {% client.global.set("series", response.body.bookingId); %}
+
+### 4b. Run the background jobs now instead of waiting for their timers
+POST {{base}}/admin/run/subscriptions
+
+###
+POST {{base}}/admin/run/recurring-charge
+
+###
+POST {{base}}/admin/run/allocation
+
+###
+POST {{base}}/admin/run/hold-sweeper
+
+### 4c. The booking with its visits, payment and maid state
+GET {{base}}/bookings/{{series}}
+
+### 4d. Stop the series: future visits cancelled (with refunds where paid), no new visits generated
+POST {{base}}/bookings/{{series}}/cancel
+
+### 4e. Everything this customer booked, newest first
+GET {{base}}/customers/c-demo/bookings
+
+###############################################################################
+# 5. Live during shift hours only (these depend on the current time)
+###############################################################################
+
+### 5a. Asha checks in (works Mon–Sat 07:00–13:00 in Koramangala)
+PUT {{base}}/maids/m-asha/live-state
+Content-Type: application/json
+
+{ "status": "IDLE" }
+
+### 5b. Can someone come within 15 minutes?
+GET {{base}}/slots/instant?locality=koramangala&serviceType=CLEANING&durationMinutes=60
+
+### 5c. Instant booking: the nearest idle maid is held at once (₹49 instant premium)
+POST {{base}}/bookings
+Content-Type: application/json
+
+{ "type": "INSTANT", "customerId": "c-demo", "locality": "koramangala", "address": "Flat 302",
+  "serviceType": "CLEANING", "durationMinutes": 60 }
+
+> {% client.global.set("job3", response.body.jobs[0].jobId); client.global.set("otp", response.body.jobs[0].otp); %}
+
+### 5d. Pay, then the visit itself: on the way → start with the OTP → done (Asha is IDLE again)
+POST {{base}}/jobs/{{job3}}/payments
+Content-Type: application/json
+Idempotency-Key: demo-pay-4
+
+{ "method": "WALLET", "details": { "provider": "PAYTM", "phone": "9876543210" } }
+
+###
+POST {{base}}/jobs/{{job3}}/en-route
+
+###
+POST {{base}}/jobs/{{job3}}/start
+Content-Type: application/json
+
+{ "otp": "{{otp}}" }
+
+###
+POST {{base}}/jobs/{{job3}}/complete

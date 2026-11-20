@@ -46,7 +46,7 @@ class MaidSearchControllerTest {
                         + "&durationMinutes=120&minRating=4&gender=FEMALE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].maidId").value("m-01"))
-                .andExpect(jsonPath("$.items[0].quotedPrice.amount").value(777.40))
+                .andExpect(jsonPath("$.items[0].quotedPrice").value(777.40))
                 .andExpect(jsonPath("$.total").value(1));
     }
 }
