@@ -51,6 +51,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-24 More scoring rules
 - [x] PR-25 Candidate finder
 - [x] PR-26 Allocation service
-- [ ] PR-27 Allocation race test
+- [x] PR-27 Allocation race test
+- [ ] PR-28 Preferred-maid search
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

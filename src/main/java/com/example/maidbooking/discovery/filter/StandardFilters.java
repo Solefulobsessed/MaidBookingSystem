@@ -19,7 +19,7 @@ import com.example.maidbooking.supply.Tier;
 public class StandardFilters {
 
     @Bean
-    MaidFilterFactory minRatingFilter() {
+    public MaidFilterFactory minRatingFilter() {
         return factory("minRating", raw -> {
             double min = parse("minRating", raw, Double::parseDouble);
             if (min < 0 || min > 5) {
@@ -30,7 +30,7 @@ public class StandardFilters {
     }
 
     @Bean
-    MaidFilterFactory tierFilter() {
+    public MaidFilterFactory tierFilter() {
         return factory("tier", raw -> {
             Tier tier = parse("tier", raw, value -> Tier.valueOf(value.toUpperCase(Locale.ROOT)));
             return maid -> maid.tier() == tier;
@@ -38,7 +38,7 @@ public class StandardFilters {
     }
 
     @Bean
-    MaidFilterFactory genderFilter() {
+    public MaidFilterFactory genderFilter() {
         return factory("gender", raw -> {
             Gender gender = parse("gender", raw, value -> Gender.valueOf(value.toUpperCase(Locale.ROOT)));
             return maid -> maid.gender() == gender;
@@ -47,7 +47,7 @@ public class StandardFilters {
 
     /** Comma-separated tags; the maid must have every one, e.g. "deep-cleaning,pet-friendly". */
     @Bean
-    MaidFilterFactory skillsFilter() {
+    public MaidFilterFactory skillsFilter() {
         return factory("skills", raw -> {
             Set<String> tags = Arrays.stream(raw.split(",")).map(String::trim).filter(t -> !t.isEmpty())
                     .collect(Collectors.toSet());
