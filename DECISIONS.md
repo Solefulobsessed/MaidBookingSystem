@@ -4,6 +4,8 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 31 | Booking status is computed, never stored: open job + something paid → ACTIVE; open jobs, nothing paid → PENDING_PAYMENT; all final → COMPLETED if any visit happened, else CANCELLED | One source of truth (the jobs); a recurring series stays ACTIVE while later visits await their charge |
+| 31 | The booking keeps the customer's `MaidFilter` constraints and preferred maid | Every job of the booking, and every re-allocation after a drop-out, must honour the same requirements |
 | 30 | Allowed job moves live in one table in `JobStatus`; `Job` methods add the business guard (e.g. `confirm` only from PENDING_PAYMENT, `start` needs the right OTP) | The table can't tell "payment arrived" from "maid dropped out" (both end in CONFIRMED); the per-method guard caught that in tests |
 | 30 | An instant job holds its maid while unpaid (`holdMaid`); `confirm` then moves it straight to ASSIGNED | Matches the spec's instant flow: the maid is held with the capacity and activated on payment |
 | 30 | The OTP is passed in when the job is created (4 digits), not generated inside `Job` | Keeps the entity deterministic and testable; the booking service will generate it |
