@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 17 | Lapsed holds are released lazily inside `reserve` (for that zone) **and** by `HoldSweeper` every minute | Lazy release means a booking never fails because of a dead hold; the sweeper keeps the slot grid right in quiet zones |
+| 17 | Paying (commit) after the hold lapsed → 409 `HOLD_EXPIRED` and the minutes are released, even if the sweeper hasn't run | The slot may already be resold; the customer must book again |
+| 17 | `CapacityHoldExpired` is published after the zone lock is released | The booking side (PR-33+) will expire the job; listeners can take any lock |
 | 16 | `reserve` checks every bucket in both pools first, then reserves; the 409 lists **every** bucket that lacks room | All or nothing, and the client learns exactly which times are full |
 | 16 | A reservation stores the minutes it took per bucket; `release` gives back exactly those | Release can't drift from reserve even if shifts change in between |
 | 16 | `holdUntil = null` means a hold with no expiry | Spec: later recurring jobs are held without expiring |

@@ -16,6 +16,7 @@ app:
     early-check-in-minutes: 30
   capacity:
     utilisation-factor: 0.85
+    hold-sweep-interval-ms: 60000
 
 management:
   endpoints:

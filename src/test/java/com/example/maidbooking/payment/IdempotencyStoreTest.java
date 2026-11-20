@@ -3,10 +3,8 @@ package com.example.maidbooking.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,37 +16,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
+import com.example.maidbooking.common.MutableClock;
 import com.example.maidbooking.common.error.ConflictException;
 import com.example.maidbooking.common.error.ErrorCode;
 import com.example.maidbooking.common.error.ValidationException;
 
 class IdempotencyStoreTest {
 
-    /** A clock tests can move forward. */
-    static class MutableClock extends Clock {
-        private Instant now = Instant.parse("2026-11-23T03:30:00Z");
-
-        void advance(Duration by) {
-            now = now.plus(by);
-        }
-
-        @Override
-        public ZoneId getZone() {
-            return ZoneId.of("Asia/Kolkata");
-        }
-
-        @Override
-        public Clock withZone(ZoneId zone) {
-            return this;
-        }
-
-        @Override
-        public Instant instant() {
-            return now;
-        }
-    }
-
-    private final MutableClock clock = new MutableClock();
+    private final MutableClock clock = new MutableClock(LocalDateTime.of(2026, 11, 23, 9, 0));
     private final IdempotencyStore store = new IdempotencyStore(clock, 24);
     private final AtomicInteger charges = new AtomicInteger();
 
