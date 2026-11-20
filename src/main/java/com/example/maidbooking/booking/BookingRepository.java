@@ -2,6 +2,7 @@ package com.example.maidbooking.booking;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
@@ -12,6 +13,10 @@ public class BookingRepository extends InMemoryRepository<Booking, String> {
 
     public BookingRepository() {
         super("Booking", Booking::id);
+    }
+
+    public Optional<Booking> findBySubscription(String subscriptionId) {
+        return findAllMatching(b -> subscriptionId.equals(b.subscriptionId())).stream().findFirst();
     }
 
     /** Newest first. */

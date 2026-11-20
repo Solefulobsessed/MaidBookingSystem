@@ -1,7 +1,10 @@
 package com.example.maidbooking.booking;
 
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import com.example.maidbooking.common.RecurrenceRule;
 import com.example.maidbooking.common.error.InvalidStateTransitionException;
@@ -23,6 +26,7 @@ public class Subscription {
     private final String preferredMaidId;
     private LocalDate generatedUntil;
     private SubscriptionStatus status = SubscriptionStatus.ACTIVE;
+    private final SortedSet<LocalDate> skippedNoCapacity = new TreeSet<>();
 
     public Subscription(String id, String customerId, String zoneId, ServiceType service, RecurrenceRule rule,
                         Tier tier, String preferredMaidId, LocalDate generatedUntil) {
@@ -53,6 +57,20 @@ public class Subscription {
         status = SubscriptionStatus.CANCELLED;
     }
 
+    /** Jobs now exist up to {@code date}. */
+    public void extendTo(LocalDate date) {
+        require(SubscriptionStatus.ACTIVE, "extend");
+        if (!date.isAfter(generatedUntil)) {
+            throw new IllegalArgumentException("Already generated until " + generatedUntil + ", asked for " + date);
+        }
+        generatedUntil = date;
+    }
+
+    /** A visit on {@code date} could not be reserved (SKIPPED_NO_CAPACITY); the series carries on. */
+    public void skipNoCapacity(LocalDate date) {
+        skippedNoCapacity.add(date);
+    }
+
     private void require(SubscriptionStatus expected, String action) {
         if (status != expected) {
             throw new InvalidStateTransitionException("Subscription", status, action);
@@ -68,4 +86,5 @@ public class Subscription {
     public String preferredMaidId() { return preferredMaidId; }
     public LocalDate generatedUntil() { return generatedUntil; }
     public SubscriptionStatus status() { return status; }
+    public SortedSet<LocalDate> skippedNoCapacity() { return Collections.unmodifiableSortedSet(skippedNoCapacity); }
 }

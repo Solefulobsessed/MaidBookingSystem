@@ -49,4 +49,29 @@ class SubscriptionTest {
         assertThatThrownBy(subscription::pause).isInstanceOf(InvalidStateTransitionException.class);
         assertThatThrownBy(subscription::resume).isInstanceOf(InvalidStateTransitionException.class);
     }
+
+    @Test
+    void extendsOnlyForwardAndOnlyWhileActive() {
+        Subscription subscription = subscription();
+        LocalDate until = subscription.generatedUntil();
+
+        subscription.extendTo(until.plusDays(1));
+        assertThat(subscription.generatedUntil()).isEqualTo(until.plusDays(1));
+        assertThatThrownBy(() -> subscription.extendTo(until)).isInstanceOf(IllegalArgumentException.class);
+
+        subscription.pause();
+        assertThatThrownBy(() -> subscription.extendTo(until.plusDays(2)))
+                .isInstanceOf(InvalidStateTransitionException.class);
+    }
+
+    @Test
+    void remembersSkippedDatesInOrder() {
+        Subscription subscription = subscription();
+        LocalDate day = LocalDate.of(2026, 12, 7);
+
+        subscription.skipNoCapacity(day.plusDays(7));
+        subscription.skipNoCapacity(day);
+
+        assertThat(subscription.skippedNoCapacity()).containsExactly(day, day.plusDays(7));
+    }
 }

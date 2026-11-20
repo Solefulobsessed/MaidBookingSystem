@@ -101,9 +101,10 @@ class BookingServiceTest {
         service = new BookingService(
                 new BookingTypeRegistry(List.of(new ScheduledBookingHandler(120, 30),
                         new RecurringBookingHandler(resolver, 120, 30), new DispatchNowHandler())),
-                resolver, new ZoneDistanceTravelTimeEstimator(15, 30),
-                new FilterRegistry(List.of(standard.genderFilter(), standard.minRatingFilter())),
-                new TierPricing(TestRateCard.standard()), capacity, allocation, maids, subscriptions, bookings, jobs, clock, 10);
+                resolver, new FilterRegistry(List.of(standard.genderFilter(), standard.minRatingFilter())),
+                new JobReserver(zones, new ZoneDistanceTravelTimeEstimator(15, 30),
+                        new TierPricing(TestRateCard.standard()), capacity),
+                capacity, allocation, maids, subscriptions, bookings, jobs, clock, 10);
         maids.save(new Maid("m-7f3a", "Lakshmi R", Gender.FEMALE, "9876543210", Set.of(ServiceType.CLEANING), null,
                 Tier.STANDARD, "kor-5", 4.6));
         // one cleaner on shift 07:00-13:00 every day for the next two weeks

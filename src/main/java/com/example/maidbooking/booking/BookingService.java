@@ -1,6 +1,5 @@
 package com.example.maidbooking.booking;
 
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -24,33 +23,29 @@ import com.example.maidbooking.booking.type.BookingPlan;
 import com.example.maidbooking.booking.type.BookingTypeHandler;
 import com.example.maidbooking.booking.type.BookingTypeRegistry;
 import com.example.maidbooking.capacity.CapacityService;
-import com.example.maidbooking.common.Money;
 import com.example.maidbooking.common.TimeSlot;
 import com.example.maidbooking.common.error.ConflictException;
 import com.example.maidbooking.common.error.ErrorCode;
 import com.example.maidbooking.common.error.ValidationException;
 import com.example.maidbooking.discovery.filter.FilterRegistry;
 import com.example.maidbooking.discovery.filter.MaidFilter;
-import com.example.maidbooking.pricing.PriceQuery;
-import com.example.maidbooking.pricing.PricingStrategy;
 import com.example.maidbooking.supply.Maid;
 import com.example.maidbooking.supply.MaidRepository;
-import com.example.maidbooking.zone.TravelTimeEstimator;
 import com.example.maidbooking.zone.Zone;
 import com.example.maidbooking.zone.ZoneResolver;
 
 /**
  * Creates bookings with one template for every type: handler → validate → plan → price → reserve capacity
- * for every job (all or nothing) → hold a maid now (instant dispatch, or the customer's preferred maid) → save. What differs per type lives in its {@link BookingTypeHandler}.
+ * for every job (all or nothing) → hold a maid now (instant dispatch, or the customer's preferred maid) → save.
+ * What differs per type lives in its {@link BookingTypeHandler}.
  */
 @Service
 public class BookingService {
 
     private final BookingTypeRegistry types;
     private final ZoneResolver zones;
-    private final TravelTimeEstimator travel;
     private final FilterRegistry filters;
-    private final PricingStrategy pricing;
+    private final JobReserver reserver;
     private final CapacityService capacity;
     private final AllocationService allocation;
     private final MaidRepository maids;
@@ -59,18 +54,16 @@ public class BookingService {
     private final JobRepository jobs;
     private final Clock clock;
     private final Duration paymentHold;
-    private final SecureRandom random = new SecureRandom();
 
-    public BookingService(BookingTypeRegistry types, ZoneResolver zones, TravelTimeEstimator travel,
-                          FilterRegistry filters, PricingStrategy pricing, CapacityService capacity,
+    public BookingService(BookingTypeRegistry types, ZoneResolver zones, FilterRegistry filters,
+                          JobReserver reserver, CapacityService capacity,
                           AllocationService allocation, MaidRepository maids,
                           SubscriptionRepository subscriptions, BookingRepository bookings, JobRepository jobs, Clock clock,
                           @Value("${app.booking.hold-minutes:10}") long holdMinutes) {
         this.types = types;
         this.zones = zones;
-        this.travel = travel;
         this.filters = filters;
-        this.pricing = pricing;
+        this.reserver = reserver;
         this.capacity = capacity;
         this.allocation = allocation;
         this.maids = maids;
@@ -133,7 +126,6 @@ public class BookingService {
      */
     private List<Job> reserveAll(CreateBookingRequest request, BookingTypeHandler handler, BookingPlan plan,
                                  Zone zone, String bookingId, LocalDateTime holdUntil) {
-        Duration buffer = travel.estimate(zone, zone).orElseThrow();
         boolean instant = handler.allocationMode() == AllocationMode.DISPATCH_NOW;
         List<Job> planned = new ArrayList<>();
         List<String> clashes = new ArrayList<>();
@@ -142,13 +134,9 @@ public class BookingService {
             for (int i = 0; i < plan.jobSlots().size(); i++) {
                 TimeSlot slot = plan.jobSlots().get(i);
                 LocalDateTime hold = i == 0 ? holdUntil : null;
-                String jobId = newId("j-");
-                Money price = pricing.price(new PriceQuery(request.service(), request.tier(), slot, zone.id(), instant));
                 try {
-                    String reservationId = capacity.reserve(zone.id(), request.service(),
-                            slot.withBufferBefore(buffer), jobId, hold).id();
-                    planned.add(new Job(jobId, bookingId, zone.id(), request.service(), slot, price, reservationId,
-                            "%04d".formatted(random.nextInt(10_000)), hold));
+                    planned.add(reserver.reserve(bookingId, zone.id(), request.service(), request.tier(), slot, hold,
+                            instant));
                 } catch (ConflictException clash) {
                     firstClash = firstClash == null ? clash : firstClash;
                     clashes.add(slot.start().toLocalDate().toString());
