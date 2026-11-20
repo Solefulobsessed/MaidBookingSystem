@@ -34,6 +34,8 @@ app:
   instant:
     promise-minutes: 15
   allocation:
+    cutoff-minutes: 60
+    retry-interval-ms: 300000
     weights:
       best-fit-gap: 1.0
       preferred-maid: 10.0
