@@ -63,6 +63,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-36 Recurring booking
 - [x] PR-37 Subscription generation
 - [x] PR-38 Payment gateway
-- [ ] PR-39 Payment methods
+- [x] PR-39 Payment methods
+- [ ] PR-41 Pay a job
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
