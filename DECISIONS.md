@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 12 | `POST /maids/{id}/shifts` adds one shift from a JSON body; with `?generateFrom=&to=` (no body) it generates from the template | Matches the spec's single endpoint; Spring routes on the query parameters |
+| 12 | A hand-added shift that overlaps another or falls on a leave day is a 409 `SHIFT_CONFLICT` (generation skips instead) | A person adding one shift should be told why it failed; bulk generation should be repeatable |
+| 12 | Shift, template and leave endpoints live in one `SupplyController` under `/api/v1/maids/{maidId}` | All are about one maid's working time; keeps `MaidController` to the profile |
 | 11 | Leave is whole days (both dates inclusive) and can't start in the past | Matches the spec's `Leave(maidId, from, to)`; part-day sickness is a separate, not-yet-approved "end shift early" feature |
 | 11 | Leave cancels only PLANNED shifts; a CHECKED_IN shift is left for the maid to end | She is already working; cancelling would be an illegal transition |
 | 11 | Re-allocating jobs on cancelled shifts is not done here | Assignments don't exist yet; PR-47 adds the leave listener that releases and re-assigns jobs |

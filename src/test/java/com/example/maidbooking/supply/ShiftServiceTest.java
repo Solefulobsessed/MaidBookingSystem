@@ -19,6 +19,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.example.maidbooking.common.TimeSlot;
+import com.example.maidbooking.common.error.ConflictException;
+import com.example.maidbooking.common.error.ErrorCode;
 import com.example.maidbooking.common.error.NotFoundException;
 import com.example.maidbooking.common.error.ValidationException;
 import com.example.maidbooking.common.lock.InMemoryLockRegistry;
@@ -178,5 +180,31 @@ class ShiftServiceTest {
                 .isInstanceOf(ValidationException.class);
         assertThatThrownBy(() -> service.addLeave("m-missing", MON, MON, "who"))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void addShiftByHand() {
+        Shift shift = service.addShift("m-1", "kor-5", new TimeSlot(MON.atTime(14, 0), MON.atTime(18, 0)));
+
+        assertThat(shift.status()).isEqualTo(ShiftStatus.PLANNED);
+        assertThat(published).hasSize(1);
+    }
+
+    @Test
+    void addShiftRejectsOverlapLeaveAndPast() {
+        service.addShift("m-1", "kor-5", new TimeSlot(MON.atTime(7, 0), MON.atTime(13, 0)));
+        service.addLeave("m-1", MON.plusDays(1), MON.plusDays(1), "Unwell");
+
+        assertThatThrownBy(() -> service.addShift("m-1", "kor-5", new TimeSlot(MON.atTime(12, 0), MON.atTime(16, 0))))
+                .isInstanceOfSatisfying(ConflictException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.SHIFT_CONFLICT));
+        assertThatThrownBy(() -> service.addShift("m-1", "kor-5",
+                new TimeSlot(MON.plusDays(1).atTime(7, 0), MON.plusDays(1).atTime(13, 0))))
+                .isInstanceOf(ConflictException.class).hasMessageContaining("on leave");
+        assertThatThrownBy(() -> service.addShift("m-1", "kor-5",
+                new TimeSlot(MON.minusDays(1).atTime(7, 0), MON.minusDays(1).atTime(9, 0))))
+                .isInstanceOf(ValidationException.class).hasMessageContaining("past");
+        assertThat(service.addShift("m-1", "kor-5", new TimeSlot(MON.atTime(13, 0), MON.atTime(17, 0))))
+                .as("back-to-back with the morning shift is fine").isNotNull();
     }
 }
