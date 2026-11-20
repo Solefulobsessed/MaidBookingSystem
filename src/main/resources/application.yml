@@ -23,6 +23,9 @@ app:
     weights:
       best-fit-gap: 1.0
       preferred-maid: 10.0
+      travel-distance: 1.0
+      fairness: 0.5
+      rating: 0.5
   pricing:
     hourly-rates:
       CLEANING: 249
