@@ -2,15 +2,19 @@ package com.example.maidbooking.supply;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import com.example.maidbooking.common.TimeSlot;
+import com.example.maidbooking.common.error.ConflictException;
+import com.example.maidbooking.common.error.ErrorCode;
 import com.example.maidbooking.common.error.ValidationException;
 import com.example.maidbooking.common.lock.LockKey;
 import com.example.maidbooking.common.lock.LockRegistry;
@@ -102,6 +106,27 @@ public class ShiftService {
                 }
             }
             return new LeaveResult(leave, cancelled);
+        });
+    }
+
+    /** Adds one shift by hand. Rejects a shift in the past, on a leave day, or overlapping another shift. */
+    public Shift addShift(String maidId, String zoneId, TimeSlot window) {
+        requireActiveMaid(maidId);
+        zones.getById(zoneId);
+        if (window.start().isBefore(LocalDateTime.now(clock))) {
+            throw new ValidationException("Cannot add a shift that starts in the past (" + window.start() + ")");
+        }
+        return locks.callWith(LockKey.maid(maidId), () -> {
+            if (leaves.isOnLeave(maidId, window.start().toLocalDate())) {
+                throw new ConflictException(ErrorCode.SHIFT_CONFLICT, "Maid " + maidId + " is on leave that day",
+                        Map.of("date", window.start().toLocalDate().toString()));
+            }
+            List<Shift> clashing = shifts.findActiveOverlapping(maidId, window);
+            if (!clashing.isEmpty()) {
+                throw new ConflictException(ErrorCode.SHIFT_CONFLICT, "Shift overlaps an existing shift",
+                        Map.of("conflictingShiftIds", clashing.stream().map(Shift::id).toList()));
+            }
+            return create(maidId, zoneId, window);
         });
     }
 

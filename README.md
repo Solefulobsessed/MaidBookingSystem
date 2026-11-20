@@ -35,6 +35,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-08 Maid onboarding API
 - [x] PR-09 Shift entity
 - [x] PR-10 Shift templates
-- [ ] PR-11 Leave
+- [x] PR-11 Leave
+- [ ] PR-12 Supply endpoints
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
