@@ -4,6 +4,12 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 43 | Boundaries: more than 4 h before → 100%; from exactly 4 h down to exactly 1 h → 50%; under 1 h → 0% | The spec says "more than 4 h" and "under 1 h", so both exact marks fall in the 50% band |
+| 43 | The instant-job rule ("0% after the maid is assigned") is covered by the time rule | An instant job starts within ~15 minutes of booking, so it is always under the 1-hour mark |
+| 43 | `CancelledBy` is CUSTOMER or PLATFORM; PLATFORM (no maid found, maid no-show) always refunds 100%, under either policy | The customer didn't cause it; a non-refundable offer only covers the customer changing their mind |
+| 43 | An unpaid job refunds nothing; a refund never exceeds what is still refundable on the payment | Covers cancelling before payment and payments that were already partly refunded |
+| 43 | Windows and percent are `app.cancellation.*` (4 h, 1 h, 50%); the policy bean is chosen with `app.cancellation.policy` = `time-based` (default) or `no-refund` | Spec: thresholds are configuration; one active policy selected by property |
+| 43 | Both policies refuse jobs that are no longer cancellable (EN_ROUTE or later, or final) with 409 `INVALID_STATE` | Spec: "Maid EN_ROUTE or later — not cancellable (409)" |
 | 42 | The saved method is kept by `SavedPaymentMethods` (payment package) keyed by subscription id; the booking controller checks it before creating the booking and saves it after | `payment` already depends on `booking`, so `Subscription` can't hold `PaymentDetails` without a package cycle; checking first means a bad method never leaves a half-made series |
 | 42 | `savedPayment` is optional; a series without one has each later visit cancelled when it falls due | Consistent with "charge failure cancels that visit"; the customer can still pay a visit themselves before then (`POST /jobs/{id}/payments`) |
 | 42 | A visit is due when it is PENDING_PAYMENT, has no payment hold (so not the first visit) and starts within `app.recurring.charge-hours-before` (24 h); the job runs every 15 min | Spec: charge 24 h before; a 15-minute sweep keeps that close to exact |
