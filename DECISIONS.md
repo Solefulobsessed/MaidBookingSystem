@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 45 | Cancelling a booking cancels the subscription first, then each visit that starts after now and is still cancellable (policy refund each); past, in-progress and finished visits are left as they are | Generation stops even if a refund later fails; spec: "past jobs untouched" |
+| 45 | If a refund fails part-way, the call stops with 502; calling again cancels the rest (an already cancelled subscription is skipped) | No rollback of refunds already made; the operation is safe to repeat |
+| 45 | A declined refund is counted on the payment (`declinedRefunds`) and is part of the refund key | Found while testing the retry: gateways remember declines per key, so the same key could never succeed. Timeouts still replay with the same key |
+| 45 | `POST /bookings/{id}/cancel` returns each cancelled visit with its refund and the total | One call for "stop my series"; per-visit detail shows why amounts differ |
 | 44 | Order: decide (policy) → refund → release maid → release capacity → `job.cancel()`. A declined refund or a gateway outage throws 502 `GATEWAY_ERROR` before anything else changes | Spec: "refund first, refund failure changes nothing"; the customer can simply retry |
 | 44 | A zero refund (unpaid, or under 1 h) makes no gateway call | Nothing to move; avoids pointless refund records at the provider |
 | 44 | `JobGuard` (booking package) replaces PaymentService's private guard: paying and cancelling the same job can't overlap; the second gets 409 `REQUEST_IN_PROGRESS` | Stops a cancel refunding while a payment is still committing (and vice versa) without a blocking job lock |

@@ -19,6 +19,7 @@ public class Payment {
     private PaymentStatus status = PaymentStatus.INITIATED;
     private String gatewayRef;
     private Money refundedAmount = Money.ZERO;
+    private int declinedRefunds;
 
     public Payment(String id, String jobId, Money amount, PaymentMethodType method, String idempotencyKey) {
         this.id = Objects.requireNonNull(id, "id");
@@ -49,6 +50,11 @@ public class Payment {
         status = refundedAmount.equals(amount) ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED;
     }
 
+    /** The gateway refused a refund; the next attempt uses a new refund key so it can be tried again. */
+    public void noteRefundDeclined() {
+        declinedRefunds++;
+    }
+
     /** What can still be refunded; only meaningful once the payment succeeded. */
     public Money refundable() {
         return amount.minus(refundedAmount);
@@ -68,4 +74,5 @@ public class Payment {
     public PaymentStatus status() { return status; }
     public String gatewayRef() { return gatewayRef; }
     public Money refundedAmount() { return refundedAmount; }
+    public int declinedRefunds() { return declinedRefunds; }
 }

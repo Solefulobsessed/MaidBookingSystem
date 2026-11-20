@@ -108,6 +108,21 @@ class PaymentProcessorTest {
     }
 
     @Test
+    void aRetryAfterADeclinedRefundUsesANewKey() {
+        given(gateway.refund(any())).willReturn(GatewayResult.declined("no"), GatewayResult.approved("rfd_1"));
+        Payment payment = new Payment("p-1", "j-1", Money.of(249), PaymentMethodType.UPI, "k-1");
+        payment.succeed("pay_1");
+
+        upi.refund(payment, Money.of(249));
+        payment.noteRefundDeclined();
+        upi.refund(payment, Money.of(249));
+
+        ArgumentCaptor<GatewayRefundRequest> sent = ArgumentCaptor.forClass(GatewayRefundRequest.class);
+        verify(gateway, times(2)).refund(sent.capture());
+        assertThat(sent.getAllValues()).extracting(GatewayRefundRequest::idempotencyKey).doesNotHaveDuplicates();
+    }
+
+    @Test
     void registryFindsEachMethodAndRejectsUnsupportedOrDuplicateOnes() {
         PaymentProcessorRegistry registry = new PaymentProcessorRegistry(List.of(card, upi, wallet));
         assertThat(registry.processorFor(PaymentMethodType.CARD)).isSameAs(card);

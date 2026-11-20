@@ -41,10 +41,13 @@ abstract class GatewayPaymentProcessor<D extends PaymentDetails> implements Paym
                 method() + ":" + instrument(detailsType.cast(details))));
     }
 
-    /** The key is derived from what has been refunded so far, so retrying the same refund is harmless. */
+    /**
+     * The key comes from what has been refunded so far and how many refunds were declined, so retrying after a
+     * timeout replays, while a retry after a decline (or the next partial refund) is a new request.
+     */
     @Override
     public GatewayResult refund(Payment payment, Money amount) {
         return gateway.refund(new GatewayRefundRequest(payment.id() + ":refund:" + payment.refundedAmount()
-                + ":" + amount, payment.gatewayRef(), amount));
+                + ":" + amount + ":" + payment.declinedRefunds(), payment.gatewayRef(), amount));
     }
 }
