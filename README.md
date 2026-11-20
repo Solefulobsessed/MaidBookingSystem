@@ -46,6 +46,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-19 Rate-card pricing
 - [x] PR-20 Slot grid
 - [x] PR-21 Maid calendar
-- [ ] PR-22 Filters
+- [x] PR-22 Filters
+- [ ] PR-23 Scoring core
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
