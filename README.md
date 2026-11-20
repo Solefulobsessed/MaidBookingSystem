@@ -31,6 +31,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-04 Money and RecurrenceRule
 - [x] PR-06 Zones
 - [x] PR-07 Maid entity
-- [ ] PR-40 Idempotency store
+- [x] PR-40 Idempotency store
+- [ ] PR-08 Maid onboarding API
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
