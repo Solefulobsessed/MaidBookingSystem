@@ -52,6 +52,10 @@ app:
     tier-multipliers:
       STANDARD: 1.0
       PREMIUM: 1.3
+    surge:
+      free-share-below: 0.2
+      uplift-percent: 20
+      instant-premium: 49
 
 management:
   endpoints:

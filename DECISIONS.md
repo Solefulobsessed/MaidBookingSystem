@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 49 | Surge looks at the job's own slot (not the travel buffer) and takes the tightest bucket in either pool (service or zone): free sellable minutes ÷ sellable minutes | A slot is as scarce as its busiest half-hour; the buffer belongs to the maid's day, not the customer's slot |
+| 49 | Below 20% free (strictly) → +20%; exactly 20% left is not surge; instant jobs add a flat ₹49 on top of any surge | Spec: "below 20%", "fixed premium for instant jobs"; all three numbers are `app.pricing.surge.*` |
+| 49 | `SurgePricingDecorator` is the `@Primary` `PricingStrategy` and wraps `TierPricing` | Every quote (slot grid, maid search, instant check) and every charge goes through the same code, so quote = charge |
+| 49 | The price is computed before the job's own capacity is reserved | The booking can't push itself into surge; the customer pays exactly what the grid showed a moment earlier |
 | 48 | `JobLifecycleService` lives in `booking` and moves the maid's live state through a new `LiveStateService.followJob` (EN_ROUTE → ON_JOB → IDLE) | `booking` may depend on `supply`; maids still can't set EN_ROUTE / ON_JOB themselves |
 | 48 | Setting off is checked first (job ASSIGNED, maid checked in and free); a failure changes neither the job nor the maid | Avoids a job EN_ROUTE with a maid still IDLE, or the reverse |
 | 48 | A wrong OTP is a 400 and leaves both job and maid EN_ROUTE, so she can try again | The OTP is typed by hand; a typo shouldn't end the visit |

@@ -18,6 +18,8 @@ import com.example.maidbooking.common.TimeSlot;
 import com.example.maidbooking.discovery.filter.FilterRegistry;
 import com.example.maidbooking.pricing.PriceQuery;
 import com.example.maidbooking.pricing.PricingStrategy;
+import com.example.maidbooking.pricing.SurgePricingDecorator;
+import com.example.maidbooking.pricing.TierPricing;
 import com.example.maidbooking.supply.ServiceType;
 import com.example.maidbooking.supply.Tier;
 
@@ -34,6 +36,9 @@ class MaidBookingApplicationTest {
     private PricingStrategy pricingStrategy;
 
     @Autowired
+    private TierPricing rateCard;
+
+    @Autowired
     private FilterRegistry filterRegistry;
 
     @Test
@@ -48,8 +53,13 @@ class MaidBookingApplicationTest {
     void rateCardIsReadFromConfiguration() {
         TimeSlot hour = TimeSlot.of(LocalDateTime.of(2026, 11, 23, 9, 0), Duration.ofHours(1));
 
-        assertThat(pricingStrategy.price(new PriceQuery(ServiceType.CLEANING, Tier.PREMIUM, hour, "kor-5", false)))
+        assertThat(rateCard.price(new PriceQuery(ServiceType.CLEANING, Tier.PREMIUM, hour, "kor-5", false)))
                 .isEqualTo(Money.of("323.70"));
+    }
+
+    @Test
+    void surgePricingIsTheStrategyEveryoneGets() {
+        assertThat(pricingStrategy).isInstanceOf(SurgePricingDecorator.class);
     }
 
     @Test
