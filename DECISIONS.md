@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 30 | Allowed job moves live in one table in `JobStatus`; `Job` methods add the business guard (e.g. `confirm` only from PENDING_PAYMENT, `start` needs the right OTP) | The table can't tell "payment arrived" from "maid dropped out" (both end in CONFIRMED); the per-method guard caught that in tests |
+| 30 | An instant job holds its maid while unpaid (`holdMaid`); `confirm` then moves it straight to ASSIGNED | Matches the spec's instant flow: the maid is held with the capacity and activated on payment |
+| 30 | The OTP is passed in when the job is created (4 digits), not generated inside `Job` | Keeps the entity deterministic and testable; the booking service will generate it |
 | 29 | Instant dispatch picks from maids who are checked in and IDLE in the job's zone or next door, whose travel is within the promise (`app.instant.promise-minutes`, 15); nearest first, then maid id | Snabbit-style dispatch; with 15/30-min travel, only same-zone maids qualify by default |
 | 29 | Instant start = now rounded up to 5 min + travel; the maid must still pass the full `CandidateFinder` check | Gives the maid a moment to leave; shift end, calendar and skill rules stay identical to scheduled jobs |
 | 29 | `GET /slots/instant` reserves nothing; when nobody can come it returns the next 3 bookable slots (today, then tomorrow) with full date-times | Availability is a quote; booking (PR-34) re-checks and reserves |
