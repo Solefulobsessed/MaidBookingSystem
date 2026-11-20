@@ -4,6 +4,11 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 34 | The instant handler plans the slot from the nearest dispatch option (start = now rounded up to 5 min + her ETA); `AllocationService.dispatch` then holds a maid whose option has exactly that slot | One `now` per request makes plan and dispatch agree; a maid who'd start at a different time isn't silently given another slot |
+| 34 | `AllocationService` gets the `DispatchStrategy`; dispatch reuses the same lock-and-re-check loop as `allocate` | Two instant bookings racing for one idle maid: the second finds her calendar taken and moves on, as in PR-27 |
+| 34 | If no maid can be held after capacity was reserved (she was just taken), all holds and reservations are released and the request fails with 409 `NO_MAID_NEARBY` | Spec: "if allocation fails, release the capacity and return 409"; nothing is left half-booked |
+| 34 | `NO_MAID_NEARBY` from planning carries `details.alternatives`: the next three open scheduled slots today or tomorrow (`InstantAvailabilityService.alternatives`, now public) | Spec asks for three alternatives; reusing the `/slots/instant` logic keeps both answers identical |
+| 34 | The instant handler resolves the zone and preference filters itself, as `BookingService` does | The handler interface only gets the request; resolving twice is cheap and keeps the interface as the spec defines it |
 | 33 | A job reserves its slot plus the same-zone travel buffer (15 min) before it, held for `app.booking.hold-minutes` (10) | Matches the spec's ledger example (a 09:00 job also takes 15 min of the 08:30 bucket) and its 10-minute payment hold |
 | 33 | All-or-nothing: if any job's reservation fails, the reservations already made are released and nothing is saved | The booking is never left half-reserved; the customer gets the `SLOT_UNAVAILABLE` conflict as is |
 | 33 | Request checks (type rules, locality, preferences) run before any capacity is reserved | A bad request costs nothing and never touches the ledger |

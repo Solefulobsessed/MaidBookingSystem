@@ -1,5 +1,7 @@
 package com.example.maidbooking.allocation;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,15 +23,18 @@ public class AllocationService {
 
     private final CandidateFinder finder;
     private final AllocationStrategy strategy;
+    private final DispatchStrategy dispatchStrategy;
     private final AssignmentRepository assignments;
     private final ShiftRepository shifts;
     private final ZoneRepository zones;
     private final LockRegistry locks;
 
-    public AllocationService(CandidateFinder finder, AllocationStrategy strategy, AssignmentRepository assignments,
-                             ShiftRepository shifts, ZoneRepository zones, LockRegistry locks) {
+    public AllocationService(CandidateFinder finder, AllocationStrategy strategy, DispatchStrategy dispatch,
+                             AssignmentRepository assignments, ShiftRepository shifts, ZoneRepository zones,
+                             LockRegistry locks) {
         this.finder = finder;
         this.strategy = strategy;
+        this.dispatchStrategy = dispatch;
         this.assignments = assignments;
         this.shifts = shifts;
         this.zones = zones;
@@ -41,14 +46,32 @@ public class AllocationService {
      * @return the assignment, or empty if no maid can take the job right now
      */
     public Optional<Assignment> allocate(AllocationRequest request, AssignmentStatus initialStatus) {
+        return assignFirst(strategy.order(finder.find(request), request), request, initialStatus);
+    }
+
+    /**
+     * Instant: holds the nearest idle maid who can start exactly at {@code request.work()}, as planned from the
+     * same dispatch options a moment earlier. Empty if all of them were taken meanwhile.
+     */
+    public Optional<Assignment> dispatch(AllocationRequest request, LocalDateTime now) {
+        List<Candidate> nearest = dispatchStrategy.options(request.zoneId(), request.service(), request.work().duration(),
+                        request.constraints(), now).stream()
+                .filter(option -> option.work().equals(request.work()))
+                .map(DispatchOption::candidate)
+                .toList();
+        return assignFirst(nearest, request, AssignmentStatus.HELD);
+    }
+
+    private Optional<Assignment> assignFirst(List<Candidate> ranked, AllocationRequest request,
+                                             AssignmentStatus initialStatus) {
         Optional<Assignment> existing = assignments.findLiveByReference(request.referenceId());
         if (existing.isPresent()) {
             return existing;
         }
         Zone target = zones.getById(request.zoneId());
-        for (Candidate ranked : strategy.order(finder.find(request), request)) {
-            Optional<Assignment> assigned = locks.callWith(LockKey.maid(ranked.maid().id()), () ->
-                    finder.candidate(shifts.getById(ranked.shift().id()), target, request)
+        for (Candidate candidate : ranked) {
+            Optional<Assignment> assigned = locks.callWith(LockKey.maid(candidate.maid().id()), () ->
+                    finder.candidate(shifts.getById(candidate.shift().id()), target, request)
                             .map(fresh -> assignments.save(new Assignment("as-" + UUID.randomUUID().toString().substring(0, 8),
                                     request.referenceId(), fresh.maid().id(), fresh.shift().id(), request.zoneId(),
                                     request.work(), fresh.blocked(), initialStatus))));
