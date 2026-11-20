@@ -6,11 +6,15 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.example.maidbooking.allocation.AllocationRequest;
+import com.example.maidbooking.allocation.AllocationService;
+import com.example.maidbooking.allocation.Assignment;
 import com.example.maidbooking.booking.type.AllocationMode;
 import com.example.maidbooking.booking.type.BookingPlan;
 import com.example.maidbooking.booking.type.BookingTypeHandler;
@@ -18,6 +22,8 @@ import com.example.maidbooking.booking.type.BookingTypeRegistry;
 import com.example.maidbooking.capacity.CapacityService;
 import com.example.maidbooking.common.Money;
 import com.example.maidbooking.common.TimeSlot;
+import com.example.maidbooking.common.error.ConflictException;
+import com.example.maidbooking.common.error.ErrorCode;
 import com.example.maidbooking.discovery.filter.FilterRegistry;
 import com.example.maidbooking.discovery.filter.MaidFilter;
 import com.example.maidbooking.pricing.PriceQuery;
@@ -28,7 +34,7 @@ import com.example.maidbooking.zone.ZoneResolver;
 
 /**
  * Creates bookings with one template for every type: handler → validate → plan → price → reserve capacity
- * for every job (all or nothing) → save. What differs per type lives in its {@link BookingTypeHandler}.
+ * for every job (all or nothing) → hold a maid now if the type dispatches at once → save. What differs per type lives in its {@link BookingTypeHandler}.
  */
 @Service
 public class BookingService {
@@ -39,6 +45,7 @@ public class BookingService {
     private final FilterRegistry filters;
     private final PricingStrategy pricing;
     private final CapacityService capacity;
+    private final AllocationService allocation;
     private final BookingRepository bookings;
     private final JobRepository jobs;
     private final Clock clock;
@@ -47,7 +54,7 @@ public class BookingService {
 
     public BookingService(BookingTypeRegistry types, ZoneResolver zones, TravelTimeEstimator travel,
                           FilterRegistry filters, PricingStrategy pricing, CapacityService capacity,
-                          BookingRepository bookings, JobRepository jobs, Clock clock,
+                          AllocationService allocation, BookingRepository bookings, JobRepository jobs, Clock clock,
                           @Value("${app.booking.hold-minutes:10}") long holdMinutes) {
         this.types = types;
         this.zones = zones;
@@ -55,6 +62,7 @@ public class BookingService {
         this.filters = filters;
         this.pricing = pricing;
         this.capacity = capacity;
+        this.allocation = allocation;
         this.bookings = bookings;
         this.jobs = jobs;
         this.clock = clock;
@@ -72,6 +80,9 @@ public class BookingService {
         Booking booking = new Booking(newId("b-"), request.customerId(), zone.id(), request.address(),
                 request.service(), request.type(), request.tier(), constraints, request.preferredMaidId(), null, now);
         List<Job> planned = reserveAll(request, handler, plan, zone, booking.id(), now.plus(paymentHold));
+        if (handler.allocationMode() == AllocationMode.DISPATCH_NOW) {
+            holdMaids(planned, constraints, now);
+        }
         planned.forEach(job -> booking.addJob(job.id()));
         bookings.save(booking);
         planned.forEach(jobs::save);
@@ -108,6 +119,25 @@ public class BookingService {
             throw e;
         }
         return planned;
+    }
+
+    /** Holds a maid for each job right away; if one can't be held, every hold and reservation is undone. */
+    private void holdMaids(List<Job> planned, MaidFilter constraints, LocalDateTime now) {
+        try {
+            for (Job job : planned) {
+                Assignment held = allocation.dispatch(new AllocationRequest(job.id(), job.zoneId(), job.service(),
+                                job.slot(), constraints, null, null), now)
+                        .orElseThrow(() -> new ConflictException(ErrorCode.NO_MAID_NEARBY,
+                                "The nearby maid was just booked by someone else; please try again", Map.of()));
+                job.holdMaid(held.maidId(), held.id());
+            }
+        } catch (RuntimeException e) {
+            planned.forEach(job -> {
+                allocation.release(job.id());
+                capacity.release(job.reservationId());
+            });
+            throw e;
+        }
     }
 
     private static String newId(String prefix) {

@@ -45,8 +45,16 @@ class AllocationServiceTest {
             List.of(new BestFitGapRule(), new PreferredMaidRule()),
             new ScoringProperties(Map.of("best-fit-gap", 1.0, "preferred-maid", 10.0))));
 
+    private DispatchStrategy nearby = (zoneId, service, duration, constraints, now) -> List.of();
+
     private AllocationService service(AllocationStrategy strategy) {
-        return new AllocationService(finder, strategy, assignments, shifts, zones, new InMemoryLockRegistry());
+        return new AllocationService(finder, strategy, nearby, assignments, shifts, zones, new InMemoryLockRegistry());
+    }
+
+    private DispatchOption option(String maidId, TimeSlot work) {
+        Candidate candidate = finder.candidate(shifts.getById("s-" + maidId), zones.getById("kor-5"),
+                request("probe", work, null)).orElseThrow();
+        return new DispatchOption(candidate, work, Duration.ofMinutes(15));
     }
 
     private static TimeSlot slot(String from, String to) {
@@ -144,5 +152,27 @@ class AllocationServiceTest {
         assertThat(allocation.release("j-1")).isEmpty();
         assertThat(allocation.allocate(request("j-2", TEN_TO_ELEVEN, null), AssignmentStatus.ACTIVE))
                 .as("her time is free again").map(Assignment::maidId).contains("m-01");
+    }
+
+    @Test
+    void dispatchHoldsTheFirstNearbyMaidWhoCanStartAtThePlannedTime() {
+        List<DispatchOption> options = List.of(option("m-02", slot("10:05", "11:05")), option("m-01", TEN_TO_ELEVEN));
+        nearby = (zoneId, service, duration, constraints, now) -> options;
+
+        Assignment held = service(bestFit).dispatch(request("j-1", TEN_TO_ELEVEN, null), MON.atTime(9, 45)).orElseThrow();
+
+        assertThat(held.maidId()).as("m-02 would start at 10:05, not the planned 10:00").isEqualTo("m-01");
+        assertThat(held.status()).isEqualTo(AssignmentStatus.HELD);
+        assertThat(held.work()).isEqualTo(TEN_TO_ELEVEN);
+    }
+
+    @Test
+    void dispatchFindsNobodyWhenTheNearbyMaidWasTakenMeanwhile() {
+        List<DispatchOption> options = List.of(option("m-01", TEN_TO_ELEVEN));
+        nearby = (zoneId, service, duration, constraints, now) -> options;
+        busy("m-01", "10:00", "11:00");
+
+        assertThat(service(bestFit).dispatch(request("j-1", TEN_TO_ELEVEN, null), MON.atTime(9, 45))).isEmpty();
+        assertThat(assignments.findLiveByReference("j-1")).isEmpty();
     }
 }

@@ -61,7 +61,8 @@ public class InstantAvailabilityService {
                 alternatives(locality, service, durationMinutes, tier, now.toLocalDate()));
     }
 
-    private List<InstantAvailability.Alternative> alternatives(String locality, ServiceType service, int minutes,
+    /** The next few scheduled slots today or tomorrow that are not full, to offer when nobody can come now. */
+    public List<InstantAvailability.Alternative> alternatives(String locality, ServiceType service, int minutes,
                                                                Tier tier, LocalDate today) {
         List<InstantAvailability.Alternative> open = new ArrayList<>();
         for (LocalDate day = today; open.size() < ALTERNATIVES && !day.isAfter(today.plusDays(1)); day = day.plusDays(1)) {

@@ -63,7 +63,8 @@ class AllocationConcurrencyTest {
                 new ZoneDistanceTravelTimeEstimator(15, 30));
         AllocationStrategy strategy = new BestFitAllocationStrategy(
                 new MaidScorer(List.of(new BestFitGapRule()), new ScoringProperties(Map.of())));
-        return new AllocationService(finder, strategy, assignments, shifts, zones, locks);
+        return new AllocationService(finder, strategy, (zoneId, service, duration, constraints, now) -> List.of(),
+                assignments, shifts, zones, locks);
     }
 
     private static TimeSlot slot(String from, String to) {
