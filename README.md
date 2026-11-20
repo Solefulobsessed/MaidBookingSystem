@@ -67,6 +67,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-41 Pay a job
 - [x] PR-42 Recurring charges
 - [x] PR-43 Cancellation policy
-- [ ] PR-44 Cancel a job
+- [x] PR-44 Cancel a job
+- [ ] PR-45 Cancel a series
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
