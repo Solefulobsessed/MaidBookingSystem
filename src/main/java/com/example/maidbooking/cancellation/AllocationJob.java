@@ -21,6 +21,7 @@ import com.example.maidbooking.booking.Job;
 import com.example.maidbooking.booking.JobGuard;
 import com.example.maidbooking.booking.JobRepository;
 import com.example.maidbooking.booking.JobStatus;
+import com.example.maidbooking.common.ManualJob;
 import com.example.maidbooking.common.error.DomainException;
 
 /**
@@ -28,7 +29,7 @@ import com.example.maidbooking.common.error.DomainException;
  * A job still without a maid at the cutoff (60 min before the start) becomes UNFULFILLED with a full refund.
  */
 @Component
-public class AllocationJob {
+public class AllocationJob implements ManualJob {
 
     private static final Logger log = LoggerFactory.getLogger(AllocationJob.class);
 
@@ -55,6 +56,16 @@ public class AllocationJob {
     @Scheduled(fixedDelayString = "${app.allocation.retry-interval-ms:300000}")
     public void run() {
         retry();
+    }
+
+    @Override
+    public String name() {
+        return "allocation";
+    }
+
+    @Override
+    public Object runNow() {
+        return retry();
     }
 
     public AllocationRetryResult retry() {

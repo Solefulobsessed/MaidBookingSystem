@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 51 | springdoc-openapi 2.8.9 (the line for Spring Boot 3.5); Swagger UI at `/swagger-ui.html`, spec at `/v3/api-docs` | Spec bonus: OpenAPI with Swagger UI at that path |
+| 51 | Each background job implements `ManualJob` (`name()`, `runNow()`); `POST /api/v1/admin/run/{job}` looks the name up in a map built from those beans; unknown → 404 listing the known names | No `switch` on the job name; a new job shows up in the admin endpoint by implementing the interface |
+| 51 | Job names: `allocation`, `subscriptions`, `recurring-charge`, `hold-sweeper`; the response is `{ job, result }` with the job's own counts | Matches the spec's admin path; counts show what a demo step just did |
+| 51 | The admin endpoint is unauthenticated | Authentication is out of scope in the brief; it would sit behind an ops role in production |
 | 50 | `demo` is the default profile (`spring.profiles.default: demo`), so `mvn spring-boot:run` starts seeded; any other active profile (e.g. `test`, `prod`) starts empty | Spec checklist: "`mvn spring-boot:run` starts with 3 zones, about 12 maids and 7 days of shifts"; the plan asks for a `demo` profile |
 | 50 | Zones: Koramangala `kor-5` (next to HSR `hsr-2` and Indiranagar `ind-1`); 12 maids, 4 per zone, a mix of services, genders, tiers and ratings (one unrated); readable ids like `m-lakshmi` | Covers every filter and both tiers, and makes a demo script easy to follow |
 | 50 | Each maid works one fixed window Monday to Saturday (6–8 h, mornings, middays or afternoons); shifts are generated through `ShiftService` for today + 6 days, which fills the ledger via `ShiftChanged` | The same path real onboarding uses, so the seed can't drift from how capacity is built |
