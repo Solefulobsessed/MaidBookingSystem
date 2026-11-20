@@ -3,9 +3,7 @@ package com.example.maidbooking.payment;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
@@ -14,6 +12,7 @@ import com.example.maidbooking.allocation.AllocationService;
 import com.example.maidbooking.allocation.AssignmentStatus;
 import com.example.maidbooking.booking.Booking;
 import com.example.maidbooking.booking.BookingRepository;
+import com.example.maidbooking.booking.JobGuard;
 import com.example.maidbooking.booking.Job;
 import com.example.maidbooking.booking.JobRepository;
 import com.example.maidbooking.booking.JobStatus;
@@ -39,11 +38,11 @@ public class PaymentService {
     private final CapacityService capacity;
     private final AllocationService allocation;
     private final Clock clock;
-    private final Set<String> jobsBeingPaid = ConcurrentHashMap.newKeySet();
+    private final JobGuard guard;
 
     public PaymentService(IdempotencyStore idempotency, PaymentProcessorRegistry processors, PaymentRepository payments,
                           JobRepository jobs, BookingRepository bookings, MaidRepository maids,
-                          CapacityService capacity, AllocationService allocation, Clock clock) {
+                          CapacityService capacity, AllocationService allocation, JobGuard guard, Clock clock) {
         this.idempotency = idempotency;
         this.processors = processors;
         this.payments = payments;
@@ -52,38 +51,33 @@ public class PaymentService {
         this.maids = maids;
         this.capacity = capacity;
         this.allocation = allocation;
+        this.guard = guard;
         this.clock = clock;
     }
 
     public IdempotentResult<PaymentReceipt> pay(String jobId, PaymentDetails details, String idempotencyKey) {
         String fingerprint = IdempotencyStore.fingerprint(jobId + "|" + details);
-        return idempotency.execute(idempotencyKey, fingerprint, () -> payOnce(jobId, details, idempotencyKey));
+        // the guard is outside the store, so "busy, try again" is never recorded as this key's answer
+        return guard.exclusive(jobId,
+                () -> idempotency.execute(idempotencyKey, fingerprint, () -> payOnce(jobId, details, idempotencyKey)));
     }
 
     private PaymentReceipt payOnce(String jobId, PaymentDetails details, String idempotencyKey) {
-        if (!jobsBeingPaid.add(jobId)) {
-            throw new ConflictException(ErrorCode.REQUEST_IN_PROGRESS, "Job " + jobId + " is already being paid",
-                    Map.of("jobId", jobId));
+        Job job = payableJob(jobId);
+        PaymentProcessor processor = processors.processorFor(details.method());
+        processor.validate(details);
+        Payment payment = payments.save(new Payment("p-" + UUID.randomUUID().toString().substring(0, 8), jobId,
+                job.price(), details.method(), idempotencyKey));
+        GatewayResult result = charge(processor, payment, details);
+        if (!result.approved()) {
+            payment.fail();
+            throw new PaymentFailedException(payment.id(), result.declineReason());
         }
-        try {
-            Job job = payableJob(jobId);
-            PaymentProcessor processor = processors.processorFor(details.method());
-            processor.validate(details);
-            Payment payment = payments.save(new Payment("p-" + UUID.randomUUID().toString().substring(0, 8), jobId,
-                    job.price(), details.method(), idempotencyKey));
-            GatewayResult result = charge(processor, payment, details);
-            if (!result.approved()) {
-                payment.fail();
-                throw new PaymentFailedException(payment.id(), result.declineReason());
-            }
-            payment.succeed(result.gatewayRef());
-            commitOrRefund(job, payment, processor);
-            job.confirm(payment.id());
-            findMaid(job);
-            return receipt(payment, jobs.save(job));
-        } finally {
-            jobsBeingPaid.remove(jobId);
-        }
+        payment.succeed(result.gatewayRef());
+        commitOrRefund(job, payment, processor);
+        job.confirm(payment.id());
+        findMaid(job);
+        return receipt(payment, jobs.save(job));
     }
 
     private Job payableJob(String jobId) {
