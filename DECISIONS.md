@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 29 | Instant dispatch picks from maids who are checked in and IDLE in the job's zone or next door, whose travel is within the promise (`app.instant.promise-minutes`, 15); nearest first, then maid id | Snabbit-style dispatch; with 15/30-min travel, only same-zone maids qualify by default |
+| 29 | Instant start = now rounded up to 5 min + travel; the maid must still pass the full `CandidateFinder` check | Gives the maid a moment to leave; shift end, calendar and skill rules stay identical to scheduled jobs |
+| 29 | `GET /slots/instant` reserves nothing; when nobody can come it returns the next 3 bookable slots (today, then tomorrow) with full date-times | Availability is a quote; booking (PR-34) re-checks and reserves |
+| 29 | Duration rule moved to one `JobDurations.validate` used by slots, search and instant | Removes three copies of the same rule |
 | 28 | Maid search reuses `CandidateFinder` (same shift, skill, calendar and travel checks as allocation) | A maid shown in search can really be booked; one set of rules, not two |
 | 28 | Search returns nothing when the zone has no capacity headroom for the slot, even if a maid looks free | Unassigned confirmed jobs already hold that capacity; showing her would lead to a failed booking |
 | 28 | Results sorted by rating (high first), then quoted price (low first), then id; paged (size ≤ 50); any extra query parameter is a filter | Spec ordering; unknown parameters hit the filter registry and become 400s instead of being ignored |
