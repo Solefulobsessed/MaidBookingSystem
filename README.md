@@ -54,6 +54,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-27 Allocation race test
 - [x] PR-28 Preferred-maid search
 - [x] PR-29 Instant dispatch
-- [ ] PR-30 Job state machine
+- [x] PR-30 Job state machine
+- [ ] PR-31 Booking aggregate
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
