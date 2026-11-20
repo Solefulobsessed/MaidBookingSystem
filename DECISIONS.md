@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 07 | `Maid` is a class (not a record) because its status changes; every other field is final | Status moves only through `activate()` / `suspend()`, which reject illegal moves |
+| 07 | New maids start ONBOARDING; ACTIVE ↔ SUSPENDED after that | Only ACTIVE maids get shifts, appear in search or receive jobs |
+| 07 | Phone must be an Indian mobile (`+91` optional, 10 digits starting 6–9); rating 0–5 where 0 = unrated | Single-city India assumption; lets the rating filter treat unrated maids explicitly |
+| 07 | `Tier` has no price multiplier yet | Multipliers belong to the rate card (PR-19), not the maid |
 | 06 | Travel to a non-neighbour zone is "out of reach" (empty), not a long estimate | Maids only work their zone or a neighbour; an empty result makes that rule explicit for allocation |
 | 06 | Neighbour links count from either side (A lists B = B is next to A) | Seed data can't drift into one-way neighbours |
 | 06 | Unknown locality → 400 `VALIDATION_FAILED` with a "we don't serve" message | Matches the spec's error table |

@@ -29,6 +29,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-03 TimeSlot
 - [x] PR-05 Locks and repository base
 - [x] PR-04 Money and RecurrenceRule
-- [ ] PR-06 Zones
+- [x] PR-06 Zones
+- [ ] PR-07 Maid entity
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
