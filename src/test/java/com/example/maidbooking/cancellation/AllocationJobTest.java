@@ -172,4 +172,15 @@ class AllocationJobTest {
         assertThat(result).isEqualTo(new AllocationRetryResult(0, 0, 1));
         assertThat(jobs.getById("j-9").status()).isEqualTo(JobStatus.CONFIRMED);
     }
+
+    @Test
+    void retriesNeverOfferTheJobBackToAMaidWhoDroppedIt() {
+        Job job = paidJob("j-9", 9, 0);
+        job.assign("m-01", "as-1");
+        job.unassign();
+
+        allocationJob.retry();
+
+        verify(allocation).allocate(argThat(r -> r.excludedMaidIds().contains("m-01")), eq(AssignmentStatus.ACTIVE));
+    }
 }

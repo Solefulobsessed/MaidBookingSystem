@@ -88,7 +88,8 @@ public class AllocationJob {
         }
         Booking booking = bookings.getById(job.bookingId());
         Optional<Assignment> found = allocation.allocate(new AllocationRequest(job.id(), job.zoneId(), job.service(),
-                job.slot(), booking.constraints(), booking.preferredMaidId(), null), AssignmentStatus.ACTIVE);
+                job.slot(), booking.constraints(), booking.preferredMaidId(), job.droppedBy()),
+                AssignmentStatus.ACTIVE);
         found.ifPresent(assignment -> {
             job.assign(assignment.maidId(), assignment.id());
             jobs.save(job);

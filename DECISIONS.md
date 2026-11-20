@@ -4,6 +4,12 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 47 | Drop-outs live in `DropOutService` (cancellation package), not `MaidService.dropJob` as the plan names it | The spec also says `supply` knows nothing about bookings; dropping a job needs jobs, bookings and allocation |
+| 47 | `Job` remembers every maid who dropped it (`droppedBy`); every later allocation (immediate, payment, retry job) excludes them | Otherwise the retry job could hand the job straight back to the maid who just said she can't come |
+| 47 | Any `ShiftChanged` CAPACITY_REMOVED (leave, absence, ending a shift early) re-allocates the live jobs on that shift | One listener covers every way a shift stops counting; leave is the main case |
+| 47 | A dropped job keeps its capacity reservation and payment; if nobody else is free it stays CONFIRMED for the retry job (cutoff → UNFULFILLED, 100% refund) | Spec: "the customer never loses the slot" unless no one can come at all |
+| 47 | An unpaid job's held maid (instant or preferred) is just released (`Job.releaseHeldMaid`); a maid is found again when it is paid | Assigning someone else before payment would hold a second maid for a job that may never be paid |
+| 47 | Only the assigned maid can drop a job (409 otherwise); EN_ROUTE or later can't be dropped (409 from the state machine) | Once she has set off, a failure is a no-show, not a drop |
 | 46 | `AllocationJob` lives in the `cancellation` package, not `allocation` | It needs jobs, bookings and the refund path; `allocation` must not depend on `booking`, and `cancellation` already depends on all of them |
 | 46 | A job is past the cutoff when it starts at or before now + 60 min (`app.allocation.cutoff-minutes`); it is closed through `CancellationService.markUnfulfilled` (platform-caused, 100% refund, capacity released) and logged as a supply gap | Same refund-first path as a cancellation, so a failed refund leaves the job CONFIRMED to be tried again next run |
 | 46 | Retries use the booking's constraints and preferred maid; jobs are taken earliest start first from `findByStatus(CONFIRMED)` | Spec: earliest first; the same hard requirements as at payment |
