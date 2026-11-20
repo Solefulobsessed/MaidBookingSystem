@@ -4,6 +4,11 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 50 | `demo` is the default profile (`spring.profiles.default: demo`), so `mvn spring-boot:run` starts seeded; any other active profile (e.g. `test`, `prod`) starts empty | Spec checklist: "`mvn spring-boot:run` starts with 3 zones, about 12 maids and 7 days of shifts"; the plan asks for a `demo` profile |
+| 50 | Zones: Koramangala `kor-5` (next to HSR `hsr-2` and Indiranagar `ind-1`); 12 maids, 4 per zone, a mix of services, genders, tiers and ratings (one unrated); readable ids like `m-lakshmi` | Covers every filter and both tiers, and makes a demo script easy to follow |
+| 50 | Each maid works one fixed window Monday to Saturday (6–8 h, mornings, middays or afternoons); shifts are generated through `ShiftService` for today + 6 days, which fills the ledger via `ShiftChanged` | The same path real onboarding uses, so the seed can't drift from how capacity is built |
+| 50 | Seed maids are saved directly (already ACTIVE, with ratings) rather than through `MaidService.onboard` | Onboarding always starts unrated; ratings are seed data (spec: no review flow) |
+| 50 | `SeedDataLoader` lives in `supply` | It only touches zones and supply, which `supply` already depends on |
 | 49 | Surge looks at the job's own slot (not the travel buffer) and takes the tightest bucket in either pool (service or zone): free sellable minutes ÷ sellable minutes | A slot is as scarce as its busiest half-hour; the buffer belongs to the maid's day, not the customer's slot |
 | 49 | Below 20% free (strictly) → +20%; exactly 20% left is not surge; instant jobs add a flat ₹49 on top of any surge | Spec: "below 20%", "fixed premium for instant jobs"; all three numbers are `app.pricing.surge.*` |
 | 49 | `SurgePricingDecorator` is the `@Primary` `PricingStrategy` and wraps `TierPricing` | Every quote (slot grid, maid search, instant check) and every charge goes through the same code, so quote = charge |
