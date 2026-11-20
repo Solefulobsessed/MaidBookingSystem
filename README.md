@@ -58,6 +58,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-31 Booking aggregate
 - [x] PR-32 Booking type registry
 - [x] PR-33 Create booking
-- [ ] PR-34 Instant booking
+- [x] PR-34 Instant booking
+- [ ] PR-35 Preferred maid
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

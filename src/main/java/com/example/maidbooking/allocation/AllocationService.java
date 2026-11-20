@@ -49,6 +49,12 @@ public class AllocationService {
         return assignFirst(strategy.order(finder.find(request), request), request, initialStatus);
     }
 
+    /** Preferred-maid mode: this maid, re-checked under her lock, or nobody. */
+    public Optional<Assignment> allocateOnly(String maidId, AllocationRequest request, AssignmentStatus initialStatus) {
+        List<Candidate> her = finder.find(request).stream().filter(c -> c.maid().id().equals(maidId)).toList();
+        return assignFirst(her, request, initialStatus);
+    }
+
     /**
      * Instant: holds the nearest idle maid who can start exactly at {@code request.work()}, as planned from the
      * same dispatch options a moment earlier. Empty if all of them were taken meanwhile.

@@ -4,6 +4,11 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 35 | A preferred maid is held (HELD assignment) at booking time and only she is tried (`AllocationService.allocateOnly`); payment then activates her like an instant maid | Spec: allocate only that maid in the same request, so the customer knows at once whether she's free |
+| 35 | Unknown preferred maid → 404; one who doesn't offer the service or isn't of the booked tier → 400, checked before anything is reserved; not free or out of area → 409 `MAID_UNAVAILABLE` with `details.maidId` | Static facts about the maid are input errors; her calendar and shifts are the "busy" case |
+| 35 | Booked tier must equal the preferred maid's tier | Price is per tier, so the amount charged matches what the search quoted for her |
+| 35 | Instant bookings reject `preferredMaidId` (400) | Instant sends the nearest idle maid; choosing a maid is the scheduled preferred-maid mode |
+| 35 | Recurring bookings will treat the preferred maid as a soft preference; PR-36 decides how that type skips the hard hold | Spec: "Recurring subscriptions treat the preferred maid as a soft preference" |
 | 34 | The instant handler plans the slot from the nearest dispatch option (start = now rounded up to 5 min + her ETA); `AllocationService.dispatch` then holds a maid whose option has exactly that slot | One `now` per request makes plan and dispatch agree; a maid who'd start at a different time isn't silently given another slot |
 | 34 | `AllocationService` gets the `DispatchStrategy`; dispatch reuses the same lock-and-re-check loop as `allocate` | Two instant bookings racing for one idle maid: the second finds her calendar taken and moves on, as in PR-27 |
 | 34 | If no maid can be held after capacity was reserved (she was just taken), all holds and reservations are released and the request fails with 409 `NO_MAID_NEARBY` | Spec: "if allocation fails, release the capacity and return 409"; nothing is left half-booked |

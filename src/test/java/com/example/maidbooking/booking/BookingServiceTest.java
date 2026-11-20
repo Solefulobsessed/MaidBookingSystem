@@ -3,6 +3,8 @@ package com.example.maidbooking.booking;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -40,12 +42,17 @@ import com.example.maidbooking.common.MutableClock;
 import com.example.maidbooking.common.TimeSlot;
 import com.example.maidbooking.common.error.ConflictException;
 import com.example.maidbooking.common.error.ErrorCode;
+import com.example.maidbooking.common.error.NotFoundException;
+import com.example.maidbooking.common.error.ValidationException;
 import com.example.maidbooking.common.lock.InMemoryLockRegistry;
 import com.example.maidbooking.discovery.filter.FilterRegistry;
 import com.example.maidbooking.discovery.filter.InvalidFilterException;
 import com.example.maidbooking.discovery.filter.StandardFilters;
 import com.example.maidbooking.pricing.TestRateCard;
 import com.example.maidbooking.pricing.TierPricing;
+import com.example.maidbooking.supply.Gender;
+import com.example.maidbooking.supply.Maid;
+import com.example.maidbooking.supply.MaidRepository;
 import com.example.maidbooking.supply.ServiceType;
 import com.example.maidbooking.supply.Tier;
 import com.example.maidbooking.zone.LocalityZoneResolver;
@@ -64,6 +71,7 @@ class BookingServiceTest {
     private final BookingRepository bookings = new BookingRepository();
     private final JobRepository jobs = new JobRepository();
     private final AllocationService allocation = mock(AllocationService.class);
+    private final MaidRepository maids = new MaidRepository();
     private BookingService service;
 
     /** A two-visit type, to show that one failed visit undoes the whole booking. */
@@ -99,7 +107,9 @@ class BookingServiceTest {
                         new DispatchNowHandler())),
                 new LocalityZoneResolver(zones), new ZoneDistanceTravelTimeEstimator(15, 30),
                 new FilterRegistry(List.of(standard.genderFilter(), standard.minRatingFilter())),
-                new TierPricing(TestRateCard.standard()), capacity, allocation, bookings, jobs, clock, 10);
+                new TierPricing(TestRateCard.standard()), capacity, allocation, maids, bookings, jobs, clock, 10);
+        maids.save(new Maid("m-7f3a", "Lakshmi R", Gender.FEMALE, "9876543210", Set.of(ServiceType.CLEANING), null,
+                Tier.STANDARD, "kor-5", 4.6));
         // one cleaner on shift Monday 07:00-13:00
         for (LocalDateTime t = MON.atTime(7, 0); t.isBefore(MON.atTime(13, 0)); t = t.plusMinutes(30)) {
             buckets.getOrCreate(BucketKey.forService("kor-5", ServiceType.CLEANING, t)).addCapacity(30);
@@ -108,8 +118,13 @@ class BookingServiceTest {
     }
 
     private static CreateBookingRequest request(BookingType type, Map<String, String> preferences) {
-        return new CreateBookingRequest(type, "c-1", "Koramangala", "Flat 302", ServiceType.CLEANING, Tier.STANDARD,
-                MON.atTime(9, 0), 60, preferences, "m-7f3a");
+        return preferring(type, preferences, null, Tier.STANDARD);
+    }
+
+    private static CreateBookingRequest preferring(BookingType type, Map<String, String> preferences, String maidId,
+                                                   Tier tier) {
+        return new CreateBookingRequest(type, "c-1", "Koramangala", "Flat 302", ServiceType.CLEANING, tier,
+                MON.atTime(9, 0), 60, preferences, maidId);
     }
 
     private long reservedMinutes(int hour, int minute) {
@@ -138,7 +153,7 @@ class BookingServiceTest {
 
         Booking booking = created.booking();
         assertThat(booking.zoneId()).isEqualTo("kor-5");
-        assertThat(booking.preferredMaidId()).isEqualTo("m-7f3a");
+        assertThat(booking.preferredMaidId()).isNull();
         assertThat(booking.constraints().describe()).contains("FEMALE");
         assertThat(booking.jobIds()).containsExactly(created.jobs().get(0).id());
         assertThat(service.get(booking.id()).jobs()).extracting(Job::id).isEqualTo(booking.jobIds());
@@ -209,5 +224,53 @@ class BookingServiceTest {
         verify(allocation).release(reservations.findAll().get(0).referenceId());
         assertThat(bookings.findAll()).isEmpty();
         assertThat(jobs.findAll()).isEmpty();
+    }
+
+    private static Assignment heldFor(String jobId, String maidId) {
+        TimeSlot work = new TimeSlot(MON.atTime(9, 0), MON.atTime(10, 0));
+        return new Assignment("as-1", jobId, maidId, "s-1", "kor-5", work, work, AssignmentStatus.HELD);
+    }
+
+    @Test
+    void preferredMaidIsHeldWithTheBooking() {
+        given(allocation.allocateOnly(eq("m-7f3a"), any(), eq(AssignmentStatus.HELD))).willAnswer(call ->
+                Optional.of(heldFor(call.<AllocationRequest>getArgument(1).referenceId(), "m-7f3a")));
+
+        BookingDetails created = service.create(preferring(BookingType.SCHEDULED, Map.of(), "m-7f3a", Tier.STANDARD));
+
+        assertThat(created.booking().preferredMaidId()).isEqualTo("m-7f3a");
+        assertThat(created.jobs().get(0).maidId()).isEqualTo("m-7f3a");
+        assertThat(created.status()).isEqualTo(BookingStatus.PENDING_PAYMENT);
+        verify(allocation).allocateOnly(eq("m-7f3a"), argThat(r -> "m-7f3a".equals(r.preferredMaidId())),
+                eq(AssignmentStatus.HELD));
+    }
+
+    @Test
+    void busyPreferredMaidIs409AndNothingStaysHeld() {
+        given(allocation.allocateOnly(any(), any(), any())).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(preferring(BookingType.SCHEDULED, Map.of(), "m-7f3a", Tier.STANDARD)))
+                .isInstanceOfSatisfying(ConflictException.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.MAID_UNAVAILABLE);
+                    assertThat(e.details()).containsEntry("maidId", "m-7f3a");
+                });
+
+        assertThat(reservedMinutes(9, 0)).isZero();
+        assertThat(reservations.findAll()).singleElement()
+                .satisfies(r -> assertThat(r.status()).isEqualTo(ReservationStatus.RELEASED));
+        verify(allocation).release(reservations.findAll().get(0).referenceId());
+        assertThat(bookings.findAll()).isEmpty();
+        assertThat(jobs.findAll()).isEmpty();
+    }
+
+    @Test
+    void preferredMaidOfAnotherTierOrUnknownIsRejectedBeforeReserving() {
+        assertThatThrownBy(() -> service.create(preferring(BookingType.SCHEDULED, Map.of(), "m-7f3a", Tier.PREMIUM)))
+                .isInstanceOf(ValidationException.class).hasMessageContaining("PREMIUM");
+        assertThatThrownBy(() -> service.create(preferring(BookingType.SCHEDULED, Map.of(), "m-nobody", Tier.STANDARD)))
+                .isInstanceOf(NotFoundException.class);
+
+        assertThat(reservations.findAll()).isEmpty();
+        verifyNoInteractions(allocation);
     }
 }
