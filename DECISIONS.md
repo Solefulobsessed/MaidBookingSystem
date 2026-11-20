@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 08 | Controllers and DTOs live in `api.<area>` (e.g. `api.maid`); services take command records, not DTOs | Keeps HTTP shapes out of the domain; the spec's `api/` package holds all controllers |
+| 08 | Maid ids are `m-` + 8 random hex characters | Short, readable in logs and URLs; collisions are negligible at this scale |
+| 08 | Onboarding activates the maid immediately and rejects a phone number already registered (compared on the last 10 digits) | The spec says onboarding saves an ACTIVE maid; one person shouldn't get two profiles |
 | 40 | Business errors (`DomainException`) are stored and replayed for the same key; unexpected errors free the key | A declined payment stays declined on retry (use a new key to try again), but a crash or timeout can be retried safely |
 | 40 | Added `REQUEST_IN_PROGRESS` (409) to `ErrorCode` | The spec names it for a repeat that arrives while the first request is still running |
 | 40 | `IdempotencyStore` is a concrete in-memory component, no interface yet | Only one implementation is planned; extract an interface if a Redis store is added |
