@@ -96,6 +96,18 @@ public class CapacityService {
                 referenceId, zoneId, service, blocked, needed, holdUntil));
     }
 
+    /**
+     * How many more jobs needing {@code blocked} would fit right now, in both pools: the smallest, over the
+     * buckets the job touches, of free minutes divided by the minutes the job needs there. Read-only.
+     */
+    public long headroom(String zoneId, ServiceType service, TimeSlot blocked) {
+        Map<LocalDateTime, Long> needed = blocked.minutesPerBucket(BucketKey.BUCKET_MINUTES);
+        return locks.callWith(LockKey.zone(zoneId), () -> needed.entrySet().stream()
+                .mapToLong(e -> Math.max(0, Math.min(free(BucketKey.forService(zoneId, service, e.getKey())),
+                        free(BucketKey.forZone(zoneId, e.getKey())))) / e.getValue())
+                .min().orElse(0));
+    }
+
     /** Payment arrived: the hold no longer expires. A hold that has already lapsed is released instead. */
     public CapacityReservation commit(String reservationId) {
         CapacityReservation reservation = reservations.getById(reservationId);

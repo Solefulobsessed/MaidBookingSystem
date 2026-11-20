@@ -20,17 +20,7 @@ import com.example.maidbooking.supply.Tier;
 
 class TierPricingTest {
 
-    static PricingProperties rateCard() {
-        Map<ServiceType, BigDecimal> rates = new EnumMap<>(ServiceType.class);
-        rates.put(ServiceType.CLEANING, new BigDecimal("249"));
-        rates.put(ServiceType.COOKING, new BigDecimal("299"));
-        rates.put(ServiceType.DISHWASHING, new BigDecimal("199"));
-        rates.put(ServiceType.LAUNDRY, new BigDecimal("199"));
-        rates.put(ServiceType.BABYSITTING, new BigDecimal("349"));
-        return new PricingProperties(rates, Map.of(Tier.STANDARD, BigDecimal.ONE, Tier.PREMIUM, new BigDecimal("1.3")));
-    }
-
-    private final TierPricing pricing = new TierPricing(rateCard());
+    private final TierPricing pricing = new TierPricing(TestRateCard.standard());
 
     private static PriceQuery query(ServiceType service, Tier tier, int minutes) {
         TimeSlot slot = TimeSlot.of(LocalDate.of(2026, 11, 23).atTime(9, 0), Duration.ofMinutes(minutes));
@@ -52,16 +42,16 @@ class TierPricingTest {
 
     @Test
     void rateCardMustCoverEveryServiceAndTierWithPositiveValues() {
-        Map<ServiceType, BigDecimal> missingLaundry = new EnumMap<>(rateCard().hourlyRates());
+        Map<ServiceType, BigDecimal> missingLaundry = new EnumMap<>(TestRateCard.standard().hourlyRates());
         missingLaundry.remove(ServiceType.LAUNDRY);
-        Map<ServiceType, BigDecimal> zeroCleaning = new EnumMap<>(rateCard().hourlyRates());
+        Map<ServiceType, BigDecimal> zeroCleaning = new EnumMap<>(TestRateCard.standard().hourlyRates());
         zeroCleaning.put(ServiceType.CLEANING, BigDecimal.ZERO);
 
-        assertThatThrownBy(() -> new PricingProperties(missingLaundry, rateCard().tierMultipliers()))
+        assertThatThrownBy(() -> new PricingProperties(missingLaundry, TestRateCard.standard().tierMultipliers()))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("LAUNDRY");
-        assertThatThrownBy(() -> new PricingProperties(zeroCleaning, rateCard().tierMultipliers()))
+        assertThatThrownBy(() -> new PricingProperties(zeroCleaning, TestRateCard.standard().tierMultipliers()))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("CLEANING");
-        assertThatThrownBy(() -> new PricingProperties(rateCard().hourlyRates(), Map.of(Tier.STANDARD, BigDecimal.ONE)))
+        assertThatThrownBy(() -> new PricingProperties(TestRateCard.standard().hourlyRates(), Map.of(Tier.STANDARD, BigDecimal.ONE)))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("PREMIUM");
     }
 }

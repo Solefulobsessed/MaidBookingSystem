@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 20 | Slot status comes from `CapacityService.headroom` = how many more such jobs fit (smallest over the job's buckets, both pools): 0 FULL, 1 FEW_LEFT, 2+ OPEN | Spec: FEW_LEFT is under two jobs' worth; one read-only number per start time keeps the grid cheap |
+| 20 | The grid includes the same-zone travel buffer, so a start exactly at the beginning of every shift (e.g. 07:00 for 07:00 shifts) shows FULL | The maid must travel to her first job too; shifts should start before the first sellable slot |
+| 20 | Start times inside the booking lead time (`app.booking.min-lead-minutes`, 120) or ending after midnight are left out of the grid; FULL slots carry no price | Matches the scheduled-booking rules, so every slot shown can actually be booked |
+| 20 | Missing or mistyped query parameters now return our `ApiError` 400 | Consistent error shape for all endpoints |
 | 19 | Prices come from a platform rate card in `app.pricing` (hourly rate per service × tier multiplier); startup fails if any service or tier is missing or not positive | Matches how Urban Company / Snabbit price; a missing rate is a config bug that should stop the app, not produce ₹0 jobs |
 | 19 | Pricing takes a `PriceQuery` (service, tier, job time without travel, zone, instant flag) instead of `BookingType` | Keeps `pricing` independent of `booking`; the surge decorator (PR-49) gets the zone and instant flag it needs |
 | 19 | Default rates: cleaning 249, cooking 299, dishwashing 199, laundry 199, babysitting 349 per hour; premium × 1.3 | Placeholder numbers in the range of public Indian home-service prices; change in `application.yml` |

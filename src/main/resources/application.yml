@@ -17,6 +17,8 @@ app:
   capacity:
     utilisation-factor: 0.85
     hold-sweep-interval-ms: 60000
+  booking:
+    min-lead-minutes: 120
   pricing:
     hourly-rates:
       CLEANING: 249
