@@ -4,6 +4,7 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 18 | Race tests use `@RepeatedTest(20)`, 100 threads released by one latch, and check bucket totals as well as success counts | Races are probabilistic; checking that bucket minutes equal live reservations catches lost updates, not just overbooking |
 | 17 | Lapsed holds are released lazily inside `reserve` (for that zone) **and** by `HoldSweeper` every minute | Lazy release means a booking never fails because of a dead hold; the sweeper keeps the slot grid right in quiet zones |
 | 17 | Paying (commit) after the hold lapsed → 409 `HOLD_EXPIRED` and the minutes are released, even if the sweeper hasn't run | The slot may already be resold; the customer must book again |
 | 17 | `CapacityHoldExpired` is published after the zone lock is released | The booking side (PR-33+) will expire the job; listeners can take any lock |
