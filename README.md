@@ -72,6 +72,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-46 Allocation retries
 - [x] PR-47 Drop-outs
 - [x] PR-48 Job lifecycle
-- [ ] PR-49 Surge pricing
+- [x] PR-49 Surge pricing
+- [ ] PR-50 Seed data
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

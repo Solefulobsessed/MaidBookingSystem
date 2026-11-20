@@ -1,6 +1,8 @@
 spring:
   application:
     name: maid-booking
+  profiles:
+    default: demo
 
 server:
   port: 8080
