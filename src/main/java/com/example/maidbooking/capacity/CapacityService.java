@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -167,5 +168,23 @@ public class CapacityService {
 
     private long free(BucketKey key) {
         return buckets.findById(key).map(bucket -> bucket.free(utilisationFactor)).orElse(0L);
+    }
+
+    /**
+     * The smallest share (0 to 1) of sellable minutes still free, in either pool, over the buckets {@code slot}
+     * touches; 0 where nothing is sellable. Used by surge pricing. Read-only.
+     */
+    public double freeShare(String zoneId, ServiceType service, TimeSlot slot) {
+        return locks.callWith(LockKey.zone(zoneId), () -> slot.minutesPerBucket(BucketKey.BUCKET_MINUTES).keySet()
+                .stream()
+                .flatMap(start -> Stream.of(BucketKey.forService(zoneId, service, start),
+                        BucketKey.forZone(zoneId, start)))
+                .mapToDouble(key -> buckets.findById(key).map(this::freeShare).orElse(0.0))
+                .min().orElse(0.0));
+    }
+
+    private double freeShare(CapacityBucket bucket) {
+        double sellable = Math.floor(bucket.capacityMinutes() * utilisationFactor);
+        return sellable <= 0 ? 0.0 : Math.max(0, bucket.free(utilisationFactor)) / sellable;
     }
 }
