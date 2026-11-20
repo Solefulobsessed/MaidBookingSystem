@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 19 | Prices come from a platform rate card in `app.pricing` (hourly rate per service × tier multiplier); startup fails if any service or tier is missing or not positive | Matches how Urban Company / Snabbit price; a missing rate is a config bug that should stop the app, not produce ₹0 jobs |
+| 19 | Pricing takes a `PriceQuery` (service, tier, job time without travel, zone, instant flag) instead of `BookingType` | Keeps `pricing` independent of `booking`; the surge decorator (PR-49) gets the zone and instant flag it needs |
+| 19 | Default rates: cleaning 249, cooking 299, dishwashing 199, laundry 199, babysitting 349 per hour; premium × 1.3 | Placeholder numbers in the range of public Indian home-service prices; change in `application.yml` |
 | 18 | Race tests use `@RepeatedTest(20)`, 100 threads released by one latch, and check bucket totals as well as success counts | Races are probabilistic; checking that bucket minutes equal live reservations catches lost updates, not just overbooking |
 | 17 | Lapsed holds are released lazily inside `reserve` (for that zone) **and** by `HoldSweeper` every minute | Lazy release means a booking never fails because of a dead hold; the sweeper keeps the slot grid right in quiet zones |
 | 17 | Paying (commit) after the hold lapsed → 409 `HOLD_EXPIRED` and the minutes are released, even if the sweeper hasn't run | The slot may already be resold; the customer must book again |

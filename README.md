@@ -42,6 +42,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-15 Capacity ledger
 - [x] PR-16 Reserve / commit / release
 - [x] PR-17 Holds
-- [ ] PR-18 Capacity race test
+- [x] PR-18 Capacity race test
+- [ ] PR-19 Rate-card pricing
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
