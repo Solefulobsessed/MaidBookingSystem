@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 25 | Candidates come from live shifts in the job's zone and its neighbours (own zone first, then neighbours by id); a maid appears once | Spec: maids work their zone or a neighbour; a fixed order keeps allocation repeatable |
+| 25 | Travel is measured from her previous job's zone, else her shift's zone; her shift must cover travel + job; the gap to her next job must cover the travel there | The maid must physically make every job on time |
+| 25 | A neighbour-zone maid can fill a job whose capacity was reserved in the job's zone | Spec allows neighbour allocation; capacity stays per zone (a known simplification noted for later work) |
+| 25 | `candidate(shift, zone, request)` is public | PR-26 re-checks the chosen maid under her lock with exactly the same rules |
 | 24 | Travel score = 1 − travel minutes / 60 (same zone 0.75, neighbour 0.5, out of reach 0), measured from her previous job's zone, else her shift's zone | Shorter trips mean more jobs per day and fewer late arrivals |
 | 24 | Fairness score = 1 / (1 + her jobs that day) | Spec's starvation score: spreads work so no maid sits idle while others are overloaded |
 | 24 | Rating score = rating / 5; unrated maids get a neutral 0.5 | New maids must still get jobs to earn a rating |

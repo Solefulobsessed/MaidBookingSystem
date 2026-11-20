@@ -48,6 +48,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-21 Maid calendar
 - [x] PR-22 Filters
 - [x] PR-23 Scoring core
-- [ ] PR-24 More scoring rules
+- [x] PR-24 More scoring rules
+- [ ] PR-25 Candidate finder
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
