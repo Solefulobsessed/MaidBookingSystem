@@ -4,6 +4,11 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 38 | A gateway decline is a `GatewayResult` (approved = false, reason); an outage is `GatewayUnavailableException` (502 `GATEWAY_ERROR`) | A decline is a normal answer the payment service records (402 to the client); an outage means "nothing happened, retry" |
+| 38 | `MockPaymentGateway` remembers each key's request and result: same key + same request replays it, a different request under the same key is a programming error (`IllegalArgumentException`); outages are not remembered | Mirrors real providers' idempotency keys; the idempotency store above it already turns key reuse into 422 for clients |
+| 38 | Failures are scripted with `declineNext(reason)` / `failNext()`, and any instrument ending in `decline` (e.g. UPI `decline@okbank`) is declined | Tests control outcomes exactly; the magic suffix lets a demo show a decline through the API |
+| 38 | Charge requests carry a masked `instrument` string, not the payment details | The processors (PR-39) own the card/UPI/wallet types; the gateway never needs full details |
+| 38 | Refunds are declined beyond what is left of the original charge | Partial refunds (50% cancellation) must never exceed the amount paid |
 | 37 | `generate()` tops up each ACTIVE subscription to today + 13 days (capped at the series end); on a normal day that is one new day, after a missed run it catches up. PAUSED subscriptions are not extended | Spec: "extends each ACTIVE subscription by one day"; catching up keeps the 14-day promise if a run is missed |
 | 37 | Each generated visit is reserved with no expiry and gets a HELD maid: the maid of the series' latest earlier visit, else the customer's preferred maid, as the allocation preference; anyone else if she can't | Spec: continuity via a high preferred-maid score; recurring charges (PR-42) later release the maid and capacity if a charge fails |
 | 37 | If allocation finds nobody, the visit is still created without a maid | Capacity is reserved; payment or the allocation retry job assigns someone later |
