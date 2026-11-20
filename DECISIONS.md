@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 32 | `CreateBookingRequest` is a record in the `booking` package; the controller (PR-33) maps its JSON onto it | Handlers live in the domain and must not depend on `api` DTOs; fields a type doesn't use stay null and each handler checks its own |
+| 32 | `BookingPlan` holds only the job slots for now; the `Subscription` part is added with recurring bookings (PR-36) | No subscription type exists yet; adding the field then keeps this PR free of placeholders |
+| 32 | A booking type with no handler bean is a 400 `VALIDATION_FAILED`; two handlers for one type stop the app at startup | Instant and recurring arrive in later PRs, so asking for them now is a client error, while a duplicate handler is a wiring bug |
+| 32 | The 30-day limit is `app.booking.max-advance-days` (default 30), next to the existing 2-hour `min-lead-minutes` | Both ends of the booking window are tunable in one place |
 | 31 | Booking status is computed, never stored: open job + something paid → ACTIVE; open jobs, nothing paid → PENDING_PAYMENT; all final → COMPLETED if any visit happened, else CANCELLED | One source of truth (the jobs); a recurring series stays ACTIVE while later visits await their charge |
 | 31 | The booking keeps the customer's `MaidFilter` constraints and preferred maid | Every job of the booking, and every re-allocation after a drop-out, must honour the same requirements |
 | 30 | Allowed job moves live in one table in `JobStatus`; `Job` methods add the business guard (e.g. `confirm` only from PENDING_PAYMENT, `start` needs the right OTP) | The table can't tell "payment arrived" from "maid dropped out" (both end in CONFIRMED); the per-method guard caught that in tests |

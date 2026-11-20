@@ -19,6 +19,7 @@ app:
     hold-sweep-interval-ms: 60000
   booking:
     min-lead-minutes: 120
+    max-advance-days: 30
   instant:
     promise-minutes: 15
   allocation:
