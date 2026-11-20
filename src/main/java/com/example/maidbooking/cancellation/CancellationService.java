@@ -3,6 +3,7 @@ package com.example.maidbooking.cancellation;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Consumer;
 
 import org.springframework.stereotype.Service;
 
@@ -63,6 +64,16 @@ public class CancellationService {
     }
 
     public CancellationResult cancelJob(String jobId, CancelledBy who) {
+        return close(jobId, who, Job::cancel);
+    }
+
+    /** No maid could be found by the cutoff: a platform-caused full refund, then UNFULFILLED. */
+    public CancellationResult markUnfulfilled(String jobId) {
+        return close(jobId, CancelledBy.PLATFORM, Job::markUnfulfilled);
+    }
+
+    /** Refund first, then release the maid and the capacity, then move the job to its final status. */
+    private CancellationResult close(String jobId, CancelledBy who, Consumer<Job> finalMove) {
         return guard.exclusive(jobId, () -> {
             Job job = jobs.getById(jobId);
             Payment payment = paymentOf(job);
@@ -72,7 +83,7 @@ public class CancellationService {
             }
             allocation.release(job.id());
             capacity.releaseIfLive(job.reservationId());
-            job.cancel();
+            finalMove.accept(job);
             jobs.save(job);
             return new CancellationResult(job.id(), job.status(), decision);
         });

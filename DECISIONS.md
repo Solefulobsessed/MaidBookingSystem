@@ -4,6 +4,11 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 46 | `AllocationJob` lives in the `cancellation` package, not `allocation` | It needs jobs, bookings and the refund path; `allocation` must not depend on `booking`, and `cancellation` already depends on all of them |
+| 46 | A job is past the cutoff when it starts at or before now + 60 min (`app.allocation.cutoff-minutes`); it is closed through `CancellationService.markUnfulfilled` (platform-caused, 100% refund, capacity released) and logged as a supply gap | Same refund-first path as a cancellation, so a failed refund leaves the job CONFIRMED to be tried again next run |
+| 46 | Retries use the booking's constraints and preferred maid; jobs are taken earliest start first from `findByStatus(CONFIRMED)` | Spec: earliest first; the same hard requirements as at payment |
+| 46 | Each assignment runs inside `JobGuard`, and re-checks the job is still CONFIRMED; a busy job is skipped until the next run | A customer cancelling at that moment wins; the job is never assigned after being cancelled |
+| 46 | The job runs every 5 minutes (`app.allocation.retry-interval-ms`) and `retry()` returns counts | Spec interval; counts make the admin trigger (PR-51) and tests readable |
 | 45 | Cancelling a booking cancels the subscription first, then each visit that starts after now and is still cancellable (policy refund each); past, in-progress and finished visits are left as they are | Generation stops even if a refund later fails; spec: "past jobs untouched" |
 | 45 | If a refund fails part-way, the call stops with 502; calling again cancels the rest (an already cancelled subscription is skipped) | No rollback of refunds already made; the operation is safe to repeat |
 | 45 | A declined refund is counted on the payment (`declinedRefunds`) and is part of the refund key | Found while testing the retry: gateways remember declines per key, so the same key could never succeed. Timeouts still replay with the same key |
