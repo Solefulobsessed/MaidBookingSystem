@@ -19,6 +19,10 @@ app:
     hold-sweep-interval-ms: 60000
   booking:
     min-lead-minutes: 120
+  allocation:
+    weights:
+      best-fit-gap: 1.0
+      preferred-maid: 10.0
   pricing:
     hourly-rates:
       CLEANING: 249
