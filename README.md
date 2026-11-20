@@ -69,6 +69,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-43 Cancellation policy
 - [x] PR-44 Cancel a job
 - [x] PR-45 Cancel a series
-- [ ] PR-46 Allocation retries
+- [x] PR-46 Allocation retries
+- [ ] PR-47 Drop-outs
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

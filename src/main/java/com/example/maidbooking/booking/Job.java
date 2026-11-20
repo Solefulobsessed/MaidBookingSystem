@@ -1,7 +1,9 @@
 package com.example.maidbooking.booking;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
 
 import com.example.maidbooking.common.Money;
 import com.example.maidbooking.common.TimeSlot;
@@ -28,6 +30,7 @@ public class Job {
     private String maidId;
     private String assignmentId;
     private String paymentId;
+    private final Set<String> droppedBy = new LinkedHashSet<>();
 
     public Job(String id, String bookingId, String zoneId, ServiceType service, TimeSlot slot, Money price,
                String reservationId, String otp, LocalDateTime holdExpiresAt) {
@@ -72,6 +75,18 @@ public class Job {
     public void unassign() {
         require(status == JobStatus.ASSIGNED, "unassign");
         move(JobStatus.CONFIRMED, "unassign");
+        forgetMaid();
+    }
+
+    /** The maid held for an unpaid job can't come; a maid is found again when it is paid. */
+    public void releaseHeldMaid() {
+        require(status == JobStatus.PENDING_PAYMENT && assignmentId != null, "release the held maid of");
+        forgetMaid();
+    }
+
+    /** A maid who dropped this job is never offered it again. */
+    private void forgetMaid() {
+        droppedBy.add(maidId);
         maidId = null;
         assignmentId = null;
     }
@@ -128,4 +143,5 @@ public class Job {
     public String maidId() { return maidId; }
     public String assignmentId() { return assignmentId; }
     public String paymentId() { return paymentId; }
+    public Set<String> droppedBy() { return Set.copyOf(droppedBy); }
 }

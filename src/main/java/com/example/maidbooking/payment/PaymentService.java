@@ -121,7 +121,8 @@ public class PaymentService {
         }
         Booking booking = bookings.getById(job.bookingId());
         allocation.allocate(new AllocationRequest(job.id(), job.zoneId(), job.service(), job.slot(),
-                        booking.constraints(), booking.preferredMaidId(), null), AssignmentStatus.ACTIVE)
+                        booking.constraints(), booking.preferredMaidId(), job.droppedBy()),
+                        AssignmentStatus.ACTIVE)
                 .ifPresent(assigned -> job.assign(assigned.maidId(), assigned.id()));
     }
 
