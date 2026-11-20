@@ -21,6 +21,8 @@ app:
     min-lead-minutes: 120
     max-advance-days: 30
     hold-minutes: 10
+  subscription:
+    generation-cron: "0 30 0 * * *"
   instant:
     promise-minutes: 15
   allocation:

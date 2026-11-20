@@ -4,6 +4,12 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 37 | `generate()` tops up each ACTIVE subscription to today + 13 days (capped at the series end); on a normal day that is one new day, after a missed run it catches up. PAUSED subscriptions are not extended | Spec: "extends each ACTIVE subscription by one day"; catching up keeps the 14-day promise if a run is missed |
+| 37 | Each generated visit is reserved with no expiry and gets a HELD maid: the maid of the series' latest earlier visit, else the customer's preferred maid, as the allocation preference; anyone else if she can't | Spec: continuity via a high preferred-maid score; recurring charges (PR-42) later release the maid and capacity if a charge fails |
+| 37 | If allocation finds nobody, the visit is still created without a maid | Capacity is reserved; payment or the allocation retry job assigns someone later |
+| 37 | A day without capacity is kept in `Subscription.skippedNoCapacity` and logged as "customer to be notified"; the window still moves on | Spec: SKIPPED_NO_CAPACITY, series not cancelled. There is no notification channel yet, so the log stands in for it |
+| 37 | Pricing and reserving one visit moved into `JobReserver`, shared by `BookingService` and `SubscriptionService` | Both create jobs the same way; one place for price, travel buffer, reservation and OTP |
+| 37 | The daily run is `SubscriptionGenerationJob` at 00:30 IST (`app.subscription.generation-cron`) | Same pattern as `HoldSweeper`; a quiet hour, after the date changes |
 | 36 | The first window is the 14 days from the series' start date; visits less than 2 hours away are skipped; `generatedUntil` = the window's last day (or the series end if sooner) | Spec: "jobs for the first 14 days"; the same 2-hour lead as scheduled bookings |
 | 36 | A series starts between today and 30 days ahead and runs 1 week to 6 months (end date ≥ start + 6 days, ≤ start + 6 months); visits follow the duration and half-hour rules | Spec input rules; reuses the scheduled booking window |
 | 36 | Only the first visit gets the 10-minute payment hold; later visits are reserved (HELD) with no expiry until they are charged | Spec: the other jobs are kept "without a hold expiry, because the subscription is the commitment". They stay HELD so payment can commit each one as usual |
