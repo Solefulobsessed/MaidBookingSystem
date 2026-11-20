@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 15 | `ShiftService` publishes `ShiftChanged` **after** releasing the maid lock | Listeners (the ledger) take the zone lock, which must come before the maid lock; publishing inside would be a lock-order violation (a test proves it) |
+| 15 | The ledger listens synchronously (`@EventListener`) | Capacity is updated before the shift API call returns, so slots are never shown from stale capacity; easy to test |
+| 15 | Pools come from the maid's skills at the time of the event | Skills don't change after onboarding yet; if editing skills is added, it must re-publish her future shifts |
 | 14 | A bucket's pool is a string: the service name, or `ANY` for the zone-wide pool | One bucket type for both pools; factories `forService` / `forZone` keep callers from typing the string |
 | 14 | `free = floor(capacity × utilisation factor) − reserved`; factor 0.85 in `app.capacity.utilisation-factor` (typed `@ConfigurationProperties`) | The spec's safety margin so confirmed jobs can still be packed into maids' calendars |
 | 14 | Removing capacity never goes below 0 but may go below what's reserved (free turns negative = full) | Leave must always be accepted; existing jobs are kept and re-allocated |
