@@ -44,6 +44,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-17 Holds
 - [x] PR-18 Capacity race test
 - [x] PR-19 Rate-card pricing
-- [ ] PR-20 Slot grid
+- [x] PR-20 Slot grid
+- [ ] PR-21 Maid calendar
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 21 | `MaidCalendar` is a read-only view built from her live assignments under the maid lock; assignments are stored in `AssignmentRepository` | One source of truth (the repository); the calendar can't drift from it |
+| 21 | A job fits if its blocked time (travel + work) overlaps none of hers **and** the gap to her next job covers the travel to it | Inserting a job before another one in a different zone must leave her time to get there |
+| 21 | Assignment statuses: HELD (instant job awaiting payment) → ACTIVE → RELEASED | Spec: the instant flow holds a maid before payment and activates on payment |
 | 20 | Slot status comes from `CapacityService.headroom` = how many more such jobs fit (smallest over the job's buckets, both pools): 0 FULL, 1 FEW_LEFT, 2+ OPEN | Spec: FEW_LEFT is under two jobs' worth; one read-only number per start time keeps the grid cheap |
 | 20 | The grid includes the same-zone travel buffer, so a start exactly at the beginning of every shift (e.g. 07:00 for 07:00 shifts) shows FULL | The maid must travel to her first job too; shifts should start before the first sellable slot |
 | 20 | Start times inside the booking lead time (`app.booking.min-lead-minutes`, 120) or ending after midnight are left out of the grid; FULL slots carry no price | Matches the scheduled-booking rules, so every slot shown can actually be booked |
