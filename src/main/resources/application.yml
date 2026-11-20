@@ -59,6 +59,10 @@ app:
       uplift-percent: 20
       instant-premium: 49
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
 management:
   endpoints:
     web:

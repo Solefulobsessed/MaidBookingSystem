@@ -19,6 +19,7 @@ import com.example.maidbooking.booking.Job;
 import com.example.maidbooking.booking.JobRepository;
 import com.example.maidbooking.booking.JobStatus;
 import com.example.maidbooking.capacity.CapacityService;
+import com.example.maidbooking.common.ManualJob;
 import com.example.maidbooking.common.error.DomainException;
 
 /**
@@ -28,7 +29,7 @@ import com.example.maidbooking.common.error.DomainException;
  * next run.
  */
 @Component
-public class RecurringChargeJob {
+public class RecurringChargeJob implements ManualJob {
 
     private static final Logger log = LoggerFactory.getLogger(RecurringChargeJob.class);
 
@@ -57,6 +58,16 @@ public class RecurringChargeJob {
     @Scheduled(fixedDelayString = "${app.recurring.charge-interval-ms:900000}")
     public void run() {
         chargeDue();
+    }
+
+    @Override
+    public String name() {
+        return "recurring-charge";
+    }
+
+    @Override
+    public Object runNow() {
+        return chargeDue();
     }
 
     public RecurringChargeResult chargeDue() {
