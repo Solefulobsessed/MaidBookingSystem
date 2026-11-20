@@ -28,6 +28,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-02 Error model
 - [x] PR-03 TimeSlot
 - [x] PR-05 Locks and repository base
-- [ ] PR-04 Money and RecurrenceRule
+- [x] PR-04 Money and RecurrenceRule
+- [ ] PR-06 Zones
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

@@ -7,6 +7,9 @@ server:
 
 app:
   time-zone: Asia/Kolkata
+  travel:
+    same-zone-minutes: 15
+    neighbour-zone-minutes: 30
 
 management:
   endpoints:
