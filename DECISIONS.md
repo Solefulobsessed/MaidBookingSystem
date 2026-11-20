@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 14 | A bucket's pool is a string: the service name, or `ANY` for the zone-wide pool | One bucket type for both pools; factories `forService` / `forZone` keep callers from typing the string |
+| 14 | `free = floor(capacity × utilisation factor) − reserved`; factor 0.85 in `app.capacity.utilisation-factor` (typed `@ConfigurationProperties`) | The spec's safety margin so confirmed jobs can still be packed into maids' calendars |
+| 14 | Removing capacity never goes below 0 but may go below what's reserved (free turns negative = full) | Leave must always be accepted; existing jobs are kept and re-allocated |
 | 13 | `PUT /live-state` takes a target status; a maid may only set IDLE, BREAK or OFFLINE. EN_ROUTE / ON_JOB are reserved for the job lifecycle | Matches the spec's endpoint; job statuses must come from real jobs |
 | 13 | OFFLINE → IDLE is check-in: it needs a PLANNED shift starting within 30 min (`app.shift.early-check-in-minutes`) and starts that shift. Going OFFLINE ends any checked-in shift | Spec: check-in requires a shift today; maids often arrive a little early |
 | 13 | Live-state transitions are a table in `MaidLiveState` (EnumMap of allowed moves) | Keeps rules in the entity and readable at a glance |

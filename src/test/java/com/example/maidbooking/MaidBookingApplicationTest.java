@@ -9,11 +9,16 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import com.example.maidbooking.capacity.CapacityProperties;
+
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class MaidBookingApplicationTest {
 
     @Autowired
     private TestRestTemplate rest;
+
+    @Autowired
+    private CapacityProperties capacityProperties;
 
     @Test
     void healthEndpointReportsUp() {
@@ -21,5 +26,10 @@ class MaidBookingApplicationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("\"status\":\"UP\"");
+    }
+
+    @Test
+    void capacitySettingsAreReadFromConfiguration() {
+        assertThat(capacityProperties.utilisationFactor()).isEqualTo(0.85);
     }
 }

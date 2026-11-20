@@ -37,6 +37,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-10 Shift templates
 - [x] PR-11 Leave
 - [x] PR-12 Supply endpoints
-- [ ] PR-13 Live state
+- [x] PR-13 Live state
+- [ ] PR-14 Capacity buckets
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

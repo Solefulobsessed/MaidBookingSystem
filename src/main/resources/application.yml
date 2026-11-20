@@ -14,6 +14,8 @@ app:
     ttl-hours: 24
   shift:
     early-check-in-minutes: 30
+  capacity:
+    utilisation-factor: 0.85
 
 management:
   endpoints:
