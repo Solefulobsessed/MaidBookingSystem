@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import com.example.maidbooking.capacity.CapacityService;
 import com.example.maidbooking.common.TimeSlot;
-import com.example.maidbooking.common.error.ValidationException;
 import com.example.maidbooking.pricing.PriceQuery;
 import com.example.maidbooking.pricing.PricingStrategy;
 import com.example.maidbooking.supply.ServiceType;
@@ -48,7 +47,7 @@ public class SlotService {
     }
 
     public SlotGrid slots(String locality, ServiceType service, LocalDate date, int durationMinutes, Tier tier) {
-        validateDuration(durationMinutes);
+        JobDurations.validate(durationMinutes);
         Zone zone = zones.resolve(locality);
         Duration buffer = travel.estimate(zone, zone).orElseThrow();
         LocalDateTime earliest = LocalDateTime.now(clock).plus(minLead);
@@ -64,11 +63,5 @@ public class SlotService {
                     : pricing.price(new PriceQuery(service, tier, job, zone.id(), false))));
         }
         return new SlotGrid(zone.id(), date, slots);
-    }
-
-    private static void validateDuration(int minutes) {
-        if (minutes < 30 || minutes > 240 || minutes % STEP_MINUTES != 0) {
-            throw new ValidationException("Duration must be 30 to 240 minutes in 30-minute steps, was " + minutes);
-        }
     }
 }

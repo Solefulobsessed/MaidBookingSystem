@@ -83,9 +83,7 @@ public class MaidSearchService {
     }
 
     private void validate(LocalDateTime start, int durationMinutes, int page, int size) {
-        if (durationMinutes < 30 || durationMinutes > 240 || durationMinutes % 30 != 0) {
-            throw new ValidationException("Duration must be 30 to 240 minutes in 30-minute steps, was " + durationMinutes);
-        }
+        JobDurations.validate(durationMinutes);
         if (start.isBefore(LocalDateTime.now(clock).plus(minLead))) {
             throw new ValidationException("Start must be at least " + minLead.toMinutes() + " minutes from now");
         }
