@@ -4,10 +4,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonValue;
+
 import com.example.maidbooking.common.error.ValidationException;
 
-/** A non-negative INR amount, always held at 2 decimal places with HALF_UP rounding. */
-public record Money(BigDecimal amount) implements Comparable<Money> {
+/** A non-negative INR amount, always held at 2 decimal places with HALF_UP rounding. In JSON it is a plain number. */
+public record Money(@JsonValue BigDecimal amount) implements Comparable<Money> {
 
     public static final String CURRENCY = "INR";
     public static final Money ZERO = new Money(BigDecimal.ZERO);

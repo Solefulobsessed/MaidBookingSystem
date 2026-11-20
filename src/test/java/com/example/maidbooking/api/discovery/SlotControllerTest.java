@@ -48,7 +48,7 @@ class SlotControllerTest {
                 .andExpect(jsonPath("$.zoneId").value("kor-5"))
                 .andExpect(jsonPath("$.slots[0].start").value("09:00:00"))
                 .andExpect(jsonPath("$.slots[0].status").value("FEW_LEFT"))
-                .andExpect(jsonPath("$.slots[0].price.amount").value(249.00))
+                .andExpect(jsonPath("$.slots[0].price").value(249.00))
                 .andExpect(jsonPath("$.slots[1].price").doesNotExist());
     }
 

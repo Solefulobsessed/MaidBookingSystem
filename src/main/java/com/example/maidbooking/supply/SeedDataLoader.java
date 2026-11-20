@@ -20,14 +20,15 @@ import com.example.maidbooking.zone.ZoneRepository;
 
 /**
  * Demo data, loaded at startup with the {@code demo} profile (the default): three Bangalore zones, twelve maids
- * with weekly hours, and their shifts for the next 7 days, which fill the capacity ledger.
+ * with weekly hours, and their shifts for the next 14 days, which fill the capacity ledger.
  */
 @Component
 @Profile("demo")
 public class SeedDataLoader implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedDataLoader.class);
-    private static final int DAYS = 7;
+    /** Two weeks, so a recurring booking's first 14-day window has capacity. */
+    private static final int DAYS = 14;
 
     private record SeedMaid(String id, String name, Gender gender, String zoneId, Tier tier, double rating,
                             int fromHour, int toHour, ServiceType... skills) {

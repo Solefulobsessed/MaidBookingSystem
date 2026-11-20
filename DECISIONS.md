@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 52 | `Money` serialises as a plain number (`@JsonValue`) | Found by the demo: prices came out as `{"amount": 323.7, "zero": false}` in the slot grid and maid search |
+| 52 | Seed shifts cover 14 days instead of 7 | Found by the demo: a recurring booking reserves its first 14 days, so the second weekly visit had no capacity |
+| 52 | `requests.http` (IntelliJ HTTP client) is the demo; `DemoScriptTest` runs the same steps 1–4 against the seeded app | The script stays known to work; the live steps (check-in, instant, OTP) depend on the clock, so they stay manual |
+| 52 | The README's status list is replaced by a short summary | All 52 PRs are in; the plan and the decisions log hold the detail |
 | 51 | springdoc-openapi 2.8.9 (the line for Spring Boot 3.5); Swagger UI at `/swagger-ui.html`, spec at `/v3/api-docs` | Spec bonus: OpenAPI with Swagger UI at that path |
 | 51 | Each background job implements `ManualJob` (`name()`, `runNow()`); `POST /api/v1/admin/run/{job}` looks the name up in a map built from those beans; unknown → 404 listing the known names | No `switch` on the job name; a new job shows up in the admin endpoint by implementing the interface |
 | 51 | Job names: `allocation`, `subscriptions`, `recurring-charge`, `hold-sweeper`; the response is `{ job, result }` with the job's own counts | Matches the spec's admin path; counts show what a demo step just did |
