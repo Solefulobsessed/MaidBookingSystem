@@ -134,6 +134,17 @@ public class CapacityService {
         return reservation;
     }
 
+    /** Like {@link #release}, but does nothing if the reservation is already released (e.g. its hold lapsed). */
+    public CapacityReservation releaseIfLive(String reservationId) {
+        CapacityReservation reservation = reservations.getById(reservationId);
+        locks.runWith(LockKey.zone(reservation.zoneId()), () -> {
+            if (reservation.status() != ReservationStatus.RELEASED) {
+                giveBack(reservation);
+            }
+        });
+        return reservation;
+    }
+
     /** Call under the zone lock. */
     private List<CapacityReservation> releaseExpiredInZone(String zoneId) {
         List<CapacityReservation> lapsed = reservations.findExpiredInZone(zoneId, LocalDateTime.now(clock));

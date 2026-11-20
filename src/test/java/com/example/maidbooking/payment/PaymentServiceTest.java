@@ -28,6 +28,7 @@ import com.example.maidbooking.booking.Booking;
 import com.example.maidbooking.booking.BookingRepository;
 import com.example.maidbooking.booking.BookingType;
 import com.example.maidbooking.booking.Job;
+import com.example.maidbooking.booking.JobGuard;
 import com.example.maidbooking.booking.JobRepository;
 import com.example.maidbooking.booking.JobStatus;
 import com.example.maidbooking.capacity.BucketKey;
@@ -91,7 +92,7 @@ class PaymentServiceTest {
     private void build() {
         service = new PaymentService(new IdempotencyStore(clock, 24),
                 new PaymentProcessorRegistry(List.of(new UpiPaymentProcessor(gateway))), payments, jobs, bookings,
-                maids, capacity, allocation, clock);
+                maids, capacity, allocation, new JobGuard(), clock);
     }
 
     private void maidAvailable() {

@@ -4,6 +4,12 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 44 | Order: decide (policy) → refund → release maid → release capacity → `job.cancel()`. A declined refund or a gateway outage throws 502 `GATEWAY_ERROR` before anything else changes | Spec: "refund first, refund failure changes nothing"; the customer can simply retry |
+| 44 | A zero refund (unpaid, or under 1 h) makes no gateway call | Nothing to move; avoids pointless refund records at the provider |
+| 44 | `JobGuard` (booking package) replaces PaymentService's private guard: paying and cancelling the same job can't overlap; the second gets 409 `REQUEST_IN_PROGRESS` | Stops a cancel refunding while a payment is still committing (and vice versa) without a blocking job lock |
+| 44 | The guard sits outside the idempotency store | Otherwise a "busy, try again" 409 would be recorded as that key's permanent answer |
+| 44 | `CapacityService.releaseIfLive` releases unless already released | An unpaid job whose hold lapsed has already given its capacity back; cancelling it must not fail or give it back twice |
+| 44 | `GET /jobs/{id}/cancellation-quote` and `POST /jobs/{id}/cancel` are customer actions (`CancelledBy.CUSTOMER`); platform-caused cancellations come from internal flows | Platform cases (no maid, no-show) are triggered by the system, never by the customer claiming them |
 | 43 | Boundaries: more than 4 h before → 100%; from exactly 4 h down to exactly 1 h → 50%; under 1 h → 0% | The spec says "more than 4 h" and "under 1 h", so both exact marks fall in the 50% band |
 | 43 | The instant-job rule ("0% after the maid is assigned") is covered by the time rule | An instant job starts within ~15 minutes of booking, so it is always under the 1-hour mark |
 | 43 | `CancelledBy` is CUSTOMER or PLATFORM; PLATFORM (no maid found, maid no-show) always refunds 100%, under either policy | The customer didn't cause it; a non-refundable offer only covers the customer changing their mind |

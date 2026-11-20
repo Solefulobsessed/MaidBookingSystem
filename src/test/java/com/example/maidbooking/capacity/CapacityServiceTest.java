@@ -215,4 +215,19 @@ class CapacityServiceTest {
         assertThat(reserved("CLEANING", 9, 0)).isZero();
         assertThat(published).hasSize(1);
     }
+
+    @Test
+    void releaseIfLiveIsANoOpForAnAlreadyReleasedReservation() {
+        capacity(ServiceType.CLEANING, 7, 13, 30);
+        CapacityService capacityService = service(1.0);
+        CapacityReservation reservation = capacityService.reserve("kor-5", ServiceType.CLEANING, jobAt(9, 60), "j-1",
+                null);
+
+        capacityService.releaseIfLive(reservation.id());
+        capacityService.releaseIfLive(reservation.id());
+
+        assertThat(reservation.status()).isEqualTo(ReservationStatus.RELEASED);
+        assertThat(reserved("CLEANING", 9, 0)).isZero();
+        assertThat(reserved("ANY", 8, 30)).as("given back once, not twice").isZero();
+    }
 }
