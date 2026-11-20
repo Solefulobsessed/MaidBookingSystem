@@ -41,6 +41,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-14 Capacity buckets
 - [x] PR-15 Capacity ledger
 - [x] PR-16 Reserve / commit / release
-- [ ] PR-17 Holds
+- [x] PR-17 Holds
+- [ ] PR-18 Capacity race test
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
