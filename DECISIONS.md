@@ -4,6 +4,7 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 27 | Allocation race tests check outcomes (counts) **and** that no maid's live jobs overlap, including travel; one case proves non-overlapping jobs all still fit | Catches double-booking and also over-eager locking that would wrongly refuse valid jobs |
 | 26 | Find and rank without locks, then re-check the chosen maid under **her** lock with the same `CandidateFinder.candidate` rules; on failure try the next | Short locks, no stale decisions; one maid's lock at a time keeps the lock order safe |
 | 26 | `allocate` returns the existing live assignment for the same job instead of making a second one | Retries (scheduler, payment replays) can't double-book a job |
 | 26 | `AllocationService` takes maid locks only; callers must not hold a job lock when calling it | Lock order zone → maid → job: booking code allocates first, then updates the job |
