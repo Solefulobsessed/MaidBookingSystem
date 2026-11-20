@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import com.example.maidbooking.capacity.CapacityProperties;
 import com.example.maidbooking.common.Money;
 import com.example.maidbooking.common.TimeSlot;
+import com.example.maidbooking.discovery.filter.FilterRegistry;
 import com.example.maidbooking.pricing.PriceQuery;
 import com.example.maidbooking.pricing.PricingStrategy;
 import com.example.maidbooking.supply.ServiceType;
@@ -32,6 +33,9 @@ class MaidBookingApplicationTest {
     @Autowired
     private PricingStrategy pricingStrategy;
 
+    @Autowired
+    private FilterRegistry filterRegistry;
+
     @Test
     void healthEndpointReportsUp() {
         ResponseEntity<String> response = rest.getForEntity("/actuator/health", String.class);
@@ -46,6 +50,11 @@ class MaidBookingApplicationTest {
 
         assertThat(pricingStrategy.price(new PriceQuery(ServiceType.CLEANING, Tier.PREMIUM, hour, "kor-5", false)))
                 .isEqualTo(Money.of("323.70"));
+    }
+
+    @Test
+    void standardFiltersAreRegistered() {
+        assertThat(filterRegistry.keys()).containsExactly("gender", "minRating", "skills", "tier");
     }
 
     @Test

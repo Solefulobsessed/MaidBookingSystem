@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 22 | `MaidFilter.matches(Maid)` takes only the maid (no `MatchContext` yet) and has `describe()` | Every spec filter depends on the maid alone; `describe()` lets a booking store its constraints as text |
+| 22 | The four standard filters are beans in one `StandardFilters` config; a new filter is a new `MaidFilterFactory` bean anywhere | Adding a filter never edits existing code; the registry collects all factories |
+| 22 | Unknown filter keys and bad values are 400s listing the supported keys; duplicate keys stop the app at startup | A typo like `minRatng` must not silently return unfiltered maids |
+| 22 | `skills` filters on the maid's tags (all must match); tier and gender are case-insensitive | Services are chosen separately; tags carry finer skills like `deep-cleaning` |
 | 21 | `MaidCalendar` is a read-only view built from her live assignments under the maid lock; assignments are stored in `AssignmentRepository` | One source of truth (the repository); the calendar can't drift from it |
 | 21 | A job fits if its blocked time (travel + work) overlaps none of hers **and** the gap to her next job covers the travel to it | Inserting a job before another one in a different zone must leave her time to get there |
 | 21 | Assignment statuses: HELD (instant job awaiting payment) → ACTIVE → RELEASED | Spec: the instant flow holds a maid before payment and activates on payment |
