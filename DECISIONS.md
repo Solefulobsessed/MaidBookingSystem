@@ -4,6 +4,13 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 36 | The first window is the 14 days from the series' start date; visits less than 2 hours away are skipped; `generatedUntil` = the window's last day (or the series end if sooner) | Spec: "jobs for the first 14 days"; the same 2-hour lead as scheduled bookings |
+| 36 | A series starts between today and 30 days ahead and runs 1 week to 6 months (end date ≥ start + 6 days, ≤ start + 6 months); visits follow the duration and half-hour rules | Spec input rules; reuses the scheduled booking window |
+| 36 | Only the first visit gets the 10-minute payment hold; later visits are reserved (HELD) with no expiry until they are charged | Spec: the other jobs are kept "without a hold expiry, because the subscription is the commitment". They stay HELD so payment can commit each one as usual |
+| 36 | Every visit is tried before failing; if any clash, all reservations are released and 409 `SLOT_UNAVAILABLE` carries `details.conflictDates`. A single-job booking keeps the ledger's own error (bucket times) | Spec: "the response lists the dates that clashed"; one-job bookings already had a precise error |
+| 36 | A booking with a subscription never hard-holds the preferred maid; the subscription keeps her as a soft preference | Spec: recurring treats the preferred maid as soft; tied to having a subscription, not to the booking type |
+| 36 | Subscription ids are `sub-` + 8 hex; `Subscription` moves ACTIVE ↔ PAUSED and to CANCELLED (once) | `s-` is already used for shifts; transitions per the spec's status list |
+| 36 | The saved payment method is not stored on the subscription yet | Payment details arrive with PR-39; recurring charges (PR-42) will add it |
 | 35 | A preferred maid is held (HELD assignment) at booking time and only she is tried (`AllocationService.allocateOnly`); payment then activates her like an instant maid | Spec: allocate only that maid in the same request, so the customer knows at once whether she's free |
 | 35 | Unknown preferred maid → 404; one who doesn't offer the service or isn't of the booked tier → 400, checked before anything is reserved; not free or out of area → 409 `MAID_UNAVAILABLE` with `details.maidId` | Static facts about the maid are input errors; her calendar and shifts are the "busy" case |
 | 35 | Booked tier must equal the preferred maid's tier | Price is per tier, so the amount charged matches what the search quoted for her |

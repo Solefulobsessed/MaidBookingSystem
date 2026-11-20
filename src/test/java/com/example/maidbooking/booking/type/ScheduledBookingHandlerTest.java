@@ -24,7 +24,7 @@ class ScheduledBookingHandlerTest {
 
     static CreateBookingRequest scheduled(LocalDateTime start, Integer minutes) {
         return new CreateBookingRequest(BookingType.SCHEDULED, "c-1", "koramangala", "Flat 302",
-                ServiceType.CLEANING, null, start, minutes, null, null);
+                ServiceType.CLEANING, null, start, minutes, null, null, null);
     }
 
     @Test
