@@ -10,6 +10,8 @@ app:
   travel:
     same-zone-minutes: 15
     neighbour-zone-minutes: 30
+  idempotency:
+    ttl-hours: 24
 
 management:
   endpoints:
