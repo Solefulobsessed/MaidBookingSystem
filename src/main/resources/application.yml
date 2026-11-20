@@ -17,6 +17,16 @@ app:
   capacity:
     utilisation-factor: 0.85
     hold-sweep-interval-ms: 60000
+  pricing:
+    hourly-rates:
+      CLEANING: 249
+      COOKING: 299
+      DISHWASHING: 199
+      LAUNDRY: 199
+      BABYSITTING: 349
+    tier-multipliers:
+      STANDARD: 1.0
+      PREMIUM: 1.3
 
 management:
   endpoints:
