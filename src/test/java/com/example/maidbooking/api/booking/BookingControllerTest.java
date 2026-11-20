@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -21,6 +23,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -39,7 +42,10 @@ import com.example.maidbooking.common.Money;
 import com.example.maidbooking.common.RecurrenceRule;
 import com.example.maidbooking.common.TimeSlot;
 import com.example.maidbooking.common.error.NotFoundException;
+import com.example.maidbooking.common.error.ValidationException;
 import com.example.maidbooking.discovery.filter.MaidFilter;
+import com.example.maidbooking.payment.PaymentDetails.UpiDetails;
+import com.example.maidbooking.payment.SavedPaymentMethods;
 import com.example.maidbooking.supply.ServiceType;
 import com.example.maidbooking.supply.Tier;
 
@@ -54,6 +60,9 @@ class BookingControllerTest {
 
     @MockitoBean
     private BookingService bookingService;
+
+    @MockitoBean
+    private SavedPaymentMethods savedPaymentMethods;
 
     private static BookingDetails scheduled() {
         Booking booking = new Booking("b-91", "c-1", "kor-5", "Flat 302", ServiceType.COOKING, BookingType.SCHEDULED,
@@ -149,6 +158,46 @@ class BookingControllerTest {
                         """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        verifyNoInteractions(bookingService);
+    }
+
+    private static BookingDetails series() {
+        Booking booking = new Booking("b-92", "c-1", "kor-5", "Flat 302", ServiceType.CLEANING, BookingType.RECURRING,
+                Tier.STANDARD, MaidFilter.all(List.of()), null, "sub-12", START.minusDays(1));
+        Job job = new Job("j-1", "b-92", "kor-5", ServiceType.CLEANING, new TimeSlot(START, START.plusHours(1)),
+                Money.of(249), "cr-1", "4821", START.minusDays(1).plusMinutes(10));
+        booking.addJob(job.id());
+        return new BookingDetails(booking, List.of(job));
+    }
+
+    private static final String SERIES_WITH_UPI = """
+            {"type": "RECURRING", "customerId": "c-1", "locality": "koramangala", "address": "Flat 302",
+             "serviceType": "CLEANING",
+             "recurrence": {"daysOfWeek": ["MONDAY"], "startTime": "09:00", "durationMinutes": 60,
+                            "startDate": "2026-11-23", "endDate": "2027-02-28"},
+             "savedPayment": {"method": "UPI", "details": {"vpa": "user@okbank"}}}
+            """;
+
+    @Test
+    void aSavedPaymentIsCheckedBeforeBookingAndKeptForTheSubscription() throws Exception {
+        given(bookingService.create(any())).willReturn(series());
+
+        mvc.perform(post("/api/v1/bookings").contentType(MediaType.APPLICATION_JSON).content(SERIES_WITH_UPI))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.subscriptionId").value("sub-12"));
+
+        InOrder order = inOrder(savedPaymentMethods, bookingService);
+        order.verify(savedPaymentMethods).check(new UpiDetails("user@okbank"));
+        order.verify(bookingService).create(any());
+        order.verify(savedPaymentMethods).save("sub-12", new UpiDetails("user@okbank"));
+    }
+
+    @Test
+    void anUnusableSavedPaymentStopsTheBookingBeforeAnythingIsReserved() throws Exception {
+        willThrow(new ValidationException("UPI ID must look like name@bank")).given(savedPaymentMethods).check(any());
+
+        mvc.perform(post("/api/v1/bookings").contentType(MediaType.APPLICATION_JSON).content(SERIES_WITH_UPI))
+                .andExpect(status().isBadRequest());
         verifyNoInteractions(bookingService);
     }
 }

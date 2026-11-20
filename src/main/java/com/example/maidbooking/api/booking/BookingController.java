@@ -15,20 +15,32 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.maidbooking.booking.BookingDetails;
 import com.example.maidbooking.booking.BookingService;
+import com.example.maidbooking.payment.PaymentDetails;
+import com.example.maidbooking.payment.SavedPaymentMethods;
 
 @RestController
 @RequestMapping("/api/v1")
 public class BookingController {
 
     private final BookingService bookingService;
+    private final SavedPaymentMethods savedPaymentMethods;
 
-    public BookingController(BookingService bookingService) {
+    public BookingController(BookingService bookingService, SavedPaymentMethods savedPaymentMethods) {
         this.bookingService = bookingService;
+        this.savedPaymentMethods = savedPaymentMethods;
     }
 
+    /** A series may send {@code savedPayment}: checked first, then kept to charge each later visit. */
     @PostMapping("/bookings")
     public ResponseEntity<BookingResponse> create(@Valid @RequestBody CreateBookingBody body) {
+        PaymentDetails saved = body.savedPayment() == null ? null : body.savedPayment().details();
+        if (saved != null) {
+            savedPaymentMethods.check(saved);
+        }
         BookingDetails created = bookingService.create(body.toRequest());
+        if (saved != null && created.booking().subscriptionId() != null) {
+            savedPaymentMethods.save(created.booking().subscriptionId(), saved);
+        }
         return ResponseEntity.created(URI.create("/api/v1/bookings/" + created.booking().id()))
                 .body(BookingResponse.from(created));
     }

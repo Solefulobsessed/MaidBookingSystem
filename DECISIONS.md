@@ -4,6 +4,11 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 42 | The saved method is kept by `SavedPaymentMethods` (payment package) keyed by subscription id; the booking controller checks it before creating the booking and saves it after | `payment` already depends on `booking`, so `Subscription` can't hold `PaymentDetails` without a package cycle; checking first means a bad method never leaves a half-made series |
+| 42 | `savedPayment` is optional; a series without one has each later visit cancelled when it falls due | Consistent with "charge failure cancels that visit"; the customer can still pay a visit themselves before then (`POST /jobs/{id}/payments`) |
+| 42 | A visit is due when it is PENDING_PAYMENT, has no payment hold (so not the first visit) and starts within `app.recurring.charge-hours-before` (24 h); the job runs every 15 min | Spec: charge 24 h before; a 15-minute sweep keeps that close to exact |
+| 42 | Charging goes through `PaymentService.pay` with key `jobId:charge`, so it commits capacity, confirms and assigns exactly like a customer payment | One payment path; a re-run replays instead of charging twice |
+| 42 | Declined (or any business error) → that visit is cancelled and its capacity and maid released; a gateway outage is left for the next run | Spec: failure isolates to one job; an outage isn't the customer's fault and the same key may be retried |
 | 41 | The request fingerprint is the job id plus the payment details; the same key with other details is 422 | Matches the spec's "same key, different body" rule without depending on JSON formatting |
 | 41 | Two payments for the same job at once (different keys) → the second gets 409 `REQUEST_IN_PROGRESS`, using a non-blocking per-job guard instead of a job lock | A job lock would have to be held while capacity (zone) and allocation (maid) locks are taken, breaking the zone → maid → job order |
 | 41 | The hold is checked before charging; if it lapses while the gateway is charging, the commit fails, the money is refunded at once and the client gets 409 `HOLD_EXPIRED` | The customer is never charged for a slot they no longer hold |

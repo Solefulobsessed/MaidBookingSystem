@@ -23,6 +23,9 @@ app:
     hold-minutes: 10
   subscription:
     generation-cron: "0 30 0 * * *"
+  recurring:
+    charge-hours-before: 24
+    charge-interval-ms: 900000
   instant:
     promise-minutes: 15
   allocation:

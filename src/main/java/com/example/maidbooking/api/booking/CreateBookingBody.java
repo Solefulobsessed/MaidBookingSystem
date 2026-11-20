@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
+import com.example.maidbooking.api.payment.PaymentBody;
 import com.example.maidbooking.booking.BookingType;
 import com.example.maidbooking.booking.CreateBookingRequest;
 import com.example.maidbooking.common.RecurrenceRule;
@@ -23,7 +24,8 @@ import com.example.maidbooking.supply.Tier;
 public record CreateBookingBody(@NotNull BookingType type, @NotBlank String customerId, @NotBlank String locality,
                                 @NotBlank String address, @NotNull ServiceType serviceType, Tier tier,
                                 LocalDateTime start, Integer durationMinutes, Map<String, String> preferences,
-                                String preferredMaidId, @Valid RecurrenceBody recurrence) {
+                                String preferredMaidId, @Valid RecurrenceBody recurrence,
+                                @Valid PaymentBody savedPayment) {
 
     /** "Every MONDAY..FRIDAY at 09:00 for 60 minutes, from startDate to endDate (inclusive)". */
     public record RecurrenceBody(@NotEmpty Set<DayOfWeek> daysOfWeek, @NotNull LocalTime startTime,
