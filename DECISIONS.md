@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 09 | Shift transitions: PLANNED → CHECKED_IN → ENDED; PLANNED → ABSENT or CANCELLED. Only PLANNED and CHECKED_IN add capacity | Matches the spec; a maid who checked in can't be cancelled, she ends her shift instead |
+| 09 | Shifts are 2–10 hours and must end on the day they start (so 20:00–01:00 is two shifts) | Spec input rule; keeps a shift's capacity inside one day's buckets |
+| 09 | `ShiftChanged` is a plain record (CAPACITY_ADDED / CAPACITY_REMOVED); the service that changes shifts publishes it | The supply package never calls the capacity package; the ledger listens instead |
 | 08 | Controllers and DTOs live in `api.<area>` (e.g. `api.maid`); services take command records, not DTOs | Keeps HTTP shapes out of the domain; the spec's `api/` package holds all controllers |
 | 08 | Maid ids are `m-` + 8 random hex characters | Short, readable in logs and URLs; collisions are negligible at this scale |
 | 08 | Onboarding activates the maid immediately and rejects a phone number already registered (compared on the last 10 digits) | The spec says onboarding saves an ACTIVE maid; one person shouldn't get two profiles |

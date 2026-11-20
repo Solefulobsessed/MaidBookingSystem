@@ -32,6 +32,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-06 Zones
 - [x] PR-07 Maid entity
 - [x] PR-40 Idempotency store
-- [ ] PR-08 Maid onboarding API
+- [x] PR-08 Maid onboarding API
+- [ ] PR-09 Shift entity
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
