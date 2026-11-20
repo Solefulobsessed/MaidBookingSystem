@@ -6,10 +6,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.example.maidbooking.common.MutableClock;
 import com.example.maidbooking.common.TimeSlot;
 import com.example.maidbooking.common.error.ConflictException;
 import com.example.maidbooking.common.error.ErrorCode;
@@ -23,10 +25,12 @@ class CapacityServiceTest {
     private static final Duration TRAVEL = Duration.ofMinutes(15);
 
     private final CapacityBucketRepository buckets = new CapacityBucketRepository();
+    private final MutableClock clock = new MutableClock(MON.atTime(8, 0));
+    private final List<Object> published = new ArrayList<>();
 
     private CapacityService service(double factor) {
         return new CapacityService(buckets, new CapacityReservationRepository(), new InMemoryLockRegistry(),
-                new CapacityProperties(factor));
+                published::add, clock, new CapacityProperties(factor));
     }
 
     /** Adds {@code minutes} per 30-min bucket between the hours, in the given service pool and the zone pool. */
@@ -152,5 +156,63 @@ class CapacityServiceTest {
         CapacityReservation reservation = service(1.0).reserve("kor-5", ServiceType.CLEANING, jobAt(9, 60), "j-1", null);
 
         assertThat(reservation.isExpired(MON.plusDays(30).atStartOfDay())).isFalse();
+    }
+
+    @Test
+    void lapsedHoldIsReleasedLazilyWhenSomeoneElseBooks() {
+        capacity(ServiceType.CLEANING, 9, 10, 30);
+        CapacityService capacityService = service(1.0);
+        TimeSlot nineToTen = TimeSlot.of(MON.atTime(9, 0), Duration.ofHours(1));
+        CapacityReservation unpaid = capacityService.reserve("kor-5", ServiceType.CLEANING, nineToTen, "j-unpaid",
+                MON.atTime(8, 10));
+        assertThatThrownBy(() -> capacityService.reserve("kor-5", ServiceType.CLEANING, nineToTen, "j-2", null))
+                .as("slot is held").isInstanceOf(ConflictException.class);
+
+        clock.set(MON.atTime(8, 10));
+        CapacityReservation second = capacityService.reserve("kor-5", ServiceType.CLEANING, nineToTen, "j-2", null);
+
+        assertThat(unpaid.status()).isEqualTo(ReservationStatus.RELEASED);
+        assertThat(second.status()).isEqualTo(ReservationStatus.HELD);
+        assertThat(published).containsExactly(new CapacityHoldExpired(unpaid.id(), "j-unpaid", "kor-5"));
+    }
+
+    @Test
+    void sweeperReleasesLapsedHoldsInEveryZone() {
+        capacity(ServiceType.CLEANING, 7, 13, 60);
+        CapacityService capacityService = service(1.0);
+        CapacityReservation lapses = capacityService.reserve("kor-5", ServiceType.CLEANING, jobAt(9, 60), "j-1",
+                MON.atTime(8, 10));
+        CapacityReservation stillHeld = capacityService.reserve("kor-5", ServiceType.CLEANING, jobAt(11, 60), "j-2",
+                MON.atTime(8, 30));
+        CapacityReservation paid = capacityService.reserve("kor-5", ServiceType.CLEANING, jobAt(10, 30), "j-3",
+                MON.atTime(8, 10));
+        capacityService.commit(paid.id());
+
+        clock.set(MON.atTime(8, 20));
+        int released = capacityService.releaseExpiredHolds();
+
+        assertThat(released).isEqualTo(1);
+        assertThat(lapses.status()).isEqualTo(ReservationStatus.RELEASED);
+        assertThat(stillHeld.status()).isEqualTo(ReservationStatus.HELD);
+        assertThat(paid.status()).isEqualTo(ReservationStatus.COMMITTED);
+        assertThat(reserved("CLEANING", 9, 0)).isZero();
+        assertThat(published).hasSize(1);
+    }
+
+    @Test
+    void payingAfterTheHoldLapsedIsRejectedAndFreesTheSlot() {
+        capacity(ServiceType.CLEANING, 7, 13, 30);
+        CapacityService capacityService = service(1.0);
+        CapacityReservation reservation = capacityService.reserve("kor-5", ServiceType.CLEANING, jobAt(9, 60), "j-1",
+                MON.atTime(8, 10));
+
+        clock.set(MON.atTime(8, 11));
+
+        assertThatThrownBy(() -> capacityService.commit(reservation.id()))
+                .isInstanceOfSatisfying(ConflictException.class,
+                        e -> assertThat(e.code()).isEqualTo(ErrorCode.HOLD_EXPIRED));
+        assertThat(reservation.status()).isEqualTo(ReservationStatus.RELEASED);
+        assertThat(reserved("CLEANING", 9, 0)).isZero();
+        assertThat(published).hasSize(1);
     }
 }
