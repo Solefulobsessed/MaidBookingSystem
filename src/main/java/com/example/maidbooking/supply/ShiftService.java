@@ -20,6 +20,10 @@ import com.example.maidbooking.common.lock.LockKey;
 import com.example.maidbooking.common.lock.LockRegistry;
 import com.example.maidbooking.zone.ZoneRepository;
 
+/**
+ * Shifts, templates and leave. {@link ShiftChanged} events are published after the maid lock is
+ * released, because listeners (the capacity ledger) take the zone lock, which must come first.
+ */
 @Service
 public class ShiftService {
 
@@ -58,7 +62,7 @@ public class ShiftService {
         requireActiveMaid(maidId);
         WeeklyShiftTemplate template = templates.getById(maidId);
         validateRange(from, to);
-        return locks.callWith(LockKey.maid(maidId), () -> {
+        ShiftGenerationResult result = locks.callWith(LockKey.maid(maidId), () -> {
             List<Shift> created = new ArrayList<>();
             int skipped = 0;
             int onLeave = 0;
@@ -81,6 +85,8 @@ public class ShiftService {
             }
             return new ShiftGenerationResult(created, skipped, onLeave);
         });
+        result.created().forEach(shift -> events.publishEvent(ShiftChanged.added(shift)));
+        return result;
     }
 
     /**
@@ -93,20 +99,21 @@ public class ShiftService {
             throw new ValidationException("Leave cannot start in the past (" + from + ")");
         }
         Leave leave = new Leave("l-" + UUID.randomUUID().toString().substring(0, 8), maidId, from, to, reason);
-        return locks.callWith(LockKey.maid(maidId), () -> {
+        LeaveResult result = locks.callWith(LockKey.maid(maidId), () -> {
             leaves.save(leave);
             List<Shift> cancelled = new ArrayList<>();
             for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
                 for (Shift shift : shifts.findByMaidAndDate(maidId, date)) {
                     if (shift.status() == ShiftStatus.PLANNED) {
                         shift.cancel();
-                        events.publishEvent(ShiftChanged.removed(shift));
                         cancelled.add(shift);
                     }
                 }
             }
             return new LeaveResult(leave, cancelled);
         });
+        result.cancelledShifts().forEach(shift -> events.publishEvent(ShiftChanged.removed(shift)));
+        return result;
     }
 
     /** Adds one shift by hand. Rejects a shift in the past, on a leave day, or overlapping another shift. */
@@ -116,7 +123,7 @@ public class ShiftService {
         if (window.start().isBefore(LocalDateTime.now(clock))) {
             throw new ValidationException("Cannot add a shift that starts in the past (" + window.start() + ")");
         }
-        return locks.callWith(LockKey.maid(maidId), () -> {
+        Shift shift = locks.callWith(LockKey.maid(maidId), () -> {
             if (leaves.isOnLeave(maidId, window.start().toLocalDate())) {
                 throw new ConflictException(ErrorCode.SHIFT_CONFLICT, "Maid " + maidId + " is on leave that day",
                         Map.of("date", window.start().toLocalDate().toString()));
@@ -128,12 +135,12 @@ public class ShiftService {
             }
             return create(maidId, zoneId, window);
         });
+        events.publishEvent(ShiftChanged.added(shift));
+        return shift;
     }
 
     private Shift create(String maidId, String zoneId, TimeSlot slot) {
-        Shift shift = shifts.save(new Shift("s-" + UUID.randomUUID().toString().substring(0, 8), maidId, zoneId, slot));
-        events.publishEvent(ShiftChanged.added(shift));
-        return shift;
+        return shifts.save(new Shift("s-" + UUID.randomUUID().toString().substring(0, 8), maidId, zoneId, slot));
     }
 
     private void requireActiveMaid(String maidId) {
