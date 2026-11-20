@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 28 | Maid search reuses `CandidateFinder` (same shift, skill, calendar and travel checks as allocation) | A maid shown in search can really be booked; one set of rules, not two |
+| 28 | Search returns nothing when the zone has no capacity headroom for the slot, even if a maid looks free | Unassigned confirmed jobs already hold that capacity; showing her would lead to a failed booking |
+| 28 | Results sorted by rating (high first), then quoted price (low first), then id; paged (size ≤ 50); any extra query parameter is a filter | Spec ordering; unknown parameters hit the filter registry and become 400s instead of being ignored |
+| 28 | `StandardFilters` bean methods are public | Other packages' tests can build the real registry |
 | 27 | Allocation race tests check outcomes (counts) **and** that no maid's live jobs overlap, including travel; one case proves non-overlapping jobs all still fit | Catches double-booking and also over-eager locking that would wrongly refuse valid jobs |
 | 26 | Find and rank without locks, then re-check the chosen maid under **her** lock with the same `CandidateFinder.candidate` rules; on failure try the next | Short locks, no stale decisions; one maid's lock at a time keeps the lock order safe |
 | 26 | `allocate` returns the existing live assignment for the same job instead of making a second one | Retries (scheduler, payment replays) can't double-book a job |
