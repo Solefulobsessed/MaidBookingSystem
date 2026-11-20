@@ -43,6 +43,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-16 Reserve / commit / release
 - [x] PR-17 Holds
 - [x] PR-18 Capacity race test
-- [ ] PR-19 Rate-card pricing
+- [x] PR-19 Rate-card pricing
+- [ ] PR-20 Slot grid
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
