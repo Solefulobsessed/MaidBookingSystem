@@ -4,12 +4,13 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Objects;
 
+import com.example.maidbooking.common.RecurrenceRule;
 import com.example.maidbooking.supply.ServiceType;
 import com.example.maidbooking.supply.Tier;
 
 /**
  * What a customer asks for when booking. Fields a booking type does not use stay null (an instant
- * booking has no {@code start}); each {@link com.example.maidbooking.booking.type.BookingTypeHandler}
+ * booking has no {@code start}, only a recurring one has a {@code recurrence}); each {@link com.example.maidbooking.booking.type.BookingTypeHandler}
  * checks the fields it needs.
  */
 public record CreateBookingRequest(
@@ -22,7 +23,8 @@ public record CreateBookingRequest(
         LocalDateTime start,
         Integer durationMinutes,
         Map<String, String> preferences,
-        String preferredMaidId) {
+        String preferredMaidId,
+        RecurrenceRule recurrence) {
 
     public CreateBookingRequest {
         Objects.requireNonNull(type, "type");

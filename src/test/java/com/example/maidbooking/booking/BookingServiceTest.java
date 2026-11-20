@@ -11,8 +11,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +32,7 @@ import com.example.maidbooking.booking.type.AllocationMode;
 import com.example.maidbooking.booking.type.BookingPlan;
 import com.example.maidbooking.booking.type.BookingTypeHandler;
 import com.example.maidbooking.booking.type.BookingTypeRegistry;
+import com.example.maidbooking.booking.type.RecurringBookingHandler;
 import com.example.maidbooking.booking.type.ScheduledBookingHandler;
 import com.example.maidbooking.capacity.BucketKey;
 import com.example.maidbooking.capacity.CapacityBucketRepository;
@@ -37,6 +41,7 @@ import com.example.maidbooking.capacity.CapacityReservation;
 import com.example.maidbooking.capacity.CapacityReservationRepository;
 import com.example.maidbooking.capacity.CapacityService;
 import com.example.maidbooking.capacity.ReservationStatus;
+import com.example.maidbooking.common.RecurrenceRule;
 import com.example.maidbooking.common.Money;
 import com.example.maidbooking.common.MutableClock;
 import com.example.maidbooking.common.TimeSlot;
@@ -72,18 +77,8 @@ class BookingServiceTest {
     private final JobRepository jobs = new JobRepository();
     private final AllocationService allocation = mock(AllocationService.class);
     private final MaidRepository maids = new MaidRepository();
+    private final SubscriptionRepository subscriptions = new SubscriptionRepository();
     private BookingService service;
-
-    /** A two-visit type, to show that one failed visit undoes the whole booking. */
-    private static final class TwoVisitHandler implements BookingTypeHandler {
-        @Override public BookingType type() { return BookingType.RECURRING; }
-        @Override public void validate(CreateBookingRequest request, LocalDateTime now) { }
-        @Override public AllocationMode allocationMode() { return AllocationMode.ALLOCATE_AFTER_PAYMENT; }
-        @Override public BookingPlan plan(CreateBookingRequest request, LocalDateTime now) {
-            return new BookingPlan(List.of(new TimeSlot(MON.atTime(9, 0), MON.atTime(10, 0)),
-                    new TimeSlot(MON.atTime(15, 0), MON.atTime(16, 0))));
-        }
-    }
 
     /** Dispatches at once, like instant bookings, for a fixed 09:00-10:00 job. */
     private static final class DispatchNowHandler implements BookingTypeHandler {
@@ -100,20 +95,23 @@ class BookingServiceTest {
         ZoneRepository zones = new ZoneRepository();
         zones.save(new Zone("kor-5", "Koramangala", Set.of("koramangala"), Set.of()));
         StandardFilters standard = new StandardFilters();
+        LocalityZoneResolver resolver = new LocalityZoneResolver(zones);
         CapacityService capacity = new CapacityService(buckets, reservations, new InMemoryLockRegistry(), event -> { },
                 clock, new CapacityProperties(1.0));
         service = new BookingService(
-                new BookingTypeRegistry(List.of(new ScheduledBookingHandler(120, 30), new TwoVisitHandler(),
-                        new DispatchNowHandler())),
-                new LocalityZoneResolver(zones), new ZoneDistanceTravelTimeEstimator(15, 30),
+                new BookingTypeRegistry(List.of(new ScheduledBookingHandler(120, 30),
+                        new RecurringBookingHandler(resolver, 120, 30), new DispatchNowHandler())),
+                resolver, new ZoneDistanceTravelTimeEstimator(15, 30),
                 new FilterRegistry(List.of(standard.genderFilter(), standard.minRatingFilter())),
-                new TierPricing(TestRateCard.standard()), capacity, allocation, maids, bookings, jobs, clock, 10);
+                new TierPricing(TestRateCard.standard()), capacity, allocation, maids, subscriptions, bookings, jobs, clock, 10);
         maids.save(new Maid("m-7f3a", "Lakshmi R", Gender.FEMALE, "9876543210", Set.of(ServiceType.CLEANING), null,
                 Tier.STANDARD, "kor-5", 4.6));
-        // one cleaner on shift Monday 07:00-13:00
-        for (LocalDateTime t = MON.atTime(7, 0); t.isBefore(MON.atTime(13, 0)); t = t.plusMinutes(30)) {
-            buckets.getOrCreate(BucketKey.forService("kor-5", ServiceType.CLEANING, t)).addCapacity(30);
-            buckets.getOrCreate(BucketKey.forZone("kor-5", t)).addCapacity(30);
+        // one cleaner on shift 07:00-13:00 every day for the next two weeks
+        for (LocalDate day = MON; day.isBefore(MON.plusDays(14)); day = day.plusDays(1)) {
+            for (LocalDateTime t = day.atTime(7, 0); t.isBefore(day.atTime(13, 0)); t = t.plusMinutes(30)) {
+                buckets.getOrCreate(BucketKey.forService("kor-5", ServiceType.CLEANING, t)).addCapacity(30);
+                buckets.getOrCreate(BucketKey.forZone("kor-5", t)).addCapacity(30);
+            }
         }
     }
 
@@ -124,7 +122,15 @@ class BookingServiceTest {
     private static CreateBookingRequest preferring(BookingType type, Map<String, String> preferences, String maidId,
                                                    Tier tier) {
         return new CreateBookingRequest(type, "c-1", "Koramangala", "Flat 302", ServiceType.CLEANING, tier,
-                MON.atTime(9, 0), 60, preferences, maidId);
+                MON.atTime(9, 0), 60, preferences, maidId, null);
+    }
+
+    private static CreateBookingRequest weekdays(String preferredMaidId) {
+        RecurrenceRule rule = new RecurrenceRule(Set.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY, DayOfWeek.FRIDAY), LocalTime.of(9, 0), Duration.ofMinutes(60), MON,
+                MON.plusMonths(3));
+        return new CreateBookingRequest(BookingType.RECURRING, "c-1", "Koramangala", "Flat 302", ServiceType.CLEANING,
+                Tier.STANDARD, null, null, Map.of(), preferredMaidId, rule);
     }
 
     private long reservedMinutes(int hour, int minute) {
@@ -162,16 +168,45 @@ class BookingServiceTest {
     }
 
     @Test
-    void oneVisitWithoutCapacityReleasesTheOthersAndSavesNothing() {
-        assertThatThrownBy(() -> service.create(request(BookingType.RECURRING, Map.of())))
-                .isInstanceOfSatisfying(ConflictException.class,
-                        e -> assertThat(e.code()).isEqualTo(ErrorCode.SLOT_UNAVAILABLE));
+    void recurringBookingReservesTwoWeeksOfVisitsAndSavesTheSubscription() {
+        BookingDetails created = service.create(weekdays("m-7f3a"));
 
-        assertThat(reservedMinutes(8, 30)).isZero();
-        assertThat(reservedMinutes(9, 0)).isZero();
-        assertThat(reservations.findAll()).allSatisfy(r -> assertThat(r.status()).isEqualTo(ReservationStatus.RELEASED));
-        assertThat(bookings.findAll()).isEmpty();
-        assertThat(jobs.findAll()).isEmpty();
+        assertThat(created.jobs()).hasSize(10).allSatisfy(job -> assertThat(job.slot().start().toLocalTime())
+                .isEqualTo(LocalTime.of(9, 0)));
+        assertThat(created.jobs()).extracting(job -> job.slot().start().toLocalDate())
+                .doesNotContain(MON.plusDays(5), MON.plusDays(6)).contains(MON, MON.plusDays(11));
+        assertThat(created.jobs().get(0).holdExpiresAt()).as("paid now").isEqualTo(NOW.plusMinutes(10));
+        assertThat(created.jobs().subList(1, 10)).allSatisfy(job -> {
+            assertThat(job.holdExpiresAt()).as("charged later").isNull();
+            assertThat(reservations.getById(job.reservationId()).expiresAt()).isNull();
+        });
+        assertThat(created.amountDueNow()).isEqualTo(Money.of(249));
+
+        Subscription subscription = subscriptions.getById(created.booking().subscriptionId());
+        assertThat(subscription.status()).isEqualTo(SubscriptionStatus.ACTIVE);
+        assertThat(subscription.generatedUntil()).isEqualTo(MON.plusDays(13));
+        assertThat(subscription.preferredMaidId()).isEqualTo("m-7f3a");
+        verifyNoInteractions(allocation);  // the preferred maid is only a preference for a series
+    }
+
+    @Test
+    void oneClashingVisitFailsTheWholeSeriesAndNamesTheDate() {
+        LocalDate wednesday = MON.plusDays(2);
+        service.create(new CreateBookingRequest(BookingType.SCHEDULED, "c-2", "Koramangala", "Flat 9",
+                ServiceType.CLEANING, Tier.STANDARD, wednesday.atTime(9, 0), 60, Map.of(), null, null));
+
+        assertThatThrownBy(() -> service.create(weekdays(null)))
+                .isInstanceOfSatisfying(ConflictException.class, e -> {
+                    assertThat(e.code()).isEqualTo(ErrorCode.SLOT_UNAVAILABLE);
+                    assertThat(e.details().get("conflictDates")).isEqualTo(List.of(wednesday.toString()));
+                    assertThat(e.getMessage()).contains(wednesday.toString());
+                });
+
+        assertThat(reservedMinutes(9, 0)).as("Monday's visit was released").isZero();
+        assertThat(reservations.findAll()).filteredOn(r -> r.status() != ReservationStatus.RELEASED)
+                .singleElement().satisfies(r -> assertThat(r.blocked().start()).isEqualTo(wednesday.atTime(8, 45)));
+        assertThat(bookings.findAll()).hasSize(1);
+        assertThat(subscriptions.findAll()).isEmpty();
     }
 
     @Test

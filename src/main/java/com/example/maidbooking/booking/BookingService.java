@@ -54,6 +54,7 @@ public class BookingService {
     private final CapacityService capacity;
     private final AllocationService allocation;
     private final MaidRepository maids;
+    private final SubscriptionRepository subscriptions;
     private final BookingRepository bookings;
     private final JobRepository jobs;
     private final Clock clock;
@@ -62,7 +63,8 @@ public class BookingService {
 
     public BookingService(BookingTypeRegistry types, ZoneResolver zones, TravelTimeEstimator travel,
                           FilterRegistry filters, PricingStrategy pricing, CapacityService capacity,
-                          AllocationService allocation, MaidRepository maids, BookingRepository bookings, JobRepository jobs, Clock clock,
+                          AllocationService allocation, MaidRepository maids,
+                          SubscriptionRepository subscriptions, BookingRepository bookings, JobRepository jobs, Clock clock,
                           @Value("${app.booking.hold-minutes:10}") long holdMinutes) {
         this.types = types;
         this.zones = zones;
@@ -72,6 +74,7 @@ public class BookingService {
         this.capacity = capacity;
         this.allocation = allocation;
         this.maids = maids;
+        this.subscriptions = subscriptions;
         this.bookings = bookings;
         this.jobs = jobs;
         this.clock = clock;
@@ -87,14 +90,16 @@ public class BookingService {
         MaidFilter constraints = MaidFilter.all(filters.fromParams(request.preferences()));
         BookingPlan plan = handler.plan(request, now);
 
+        Subscription subscription = plan.subscription();
         Booking booking = new Booking(newId("b-"), request.customerId(), zone.id(), request.address(),
-                request.service(), request.type(), request.tier(), constraints, request.preferredMaidId(), null, now);
+                request.service(), request.type(), request.tier(), constraints, request.preferredMaidId(),
+                subscription == null ? null : subscription.id(), now);
         List<Job> planned = reserveAll(request, handler, plan, zone, booking.id(), now.plus(paymentHold));
         if (handler.allocationMode() == AllocationMode.DISPATCH_NOW) {
             holdMaids(planned, job -> allocation.dispatch(allocationRequest(job, constraints, null), now),
                     () -> new ConflictException(ErrorCode.NO_MAID_NEARBY,
                             "The nearby maid was just booked by someone else; please try again", Map.of()));
-        } else if (request.preferredMaidId() != null) {
+        } else if (request.preferredMaidId() != null && subscription == null) {
             String maidId = request.preferredMaidId();
             holdMaids(planned, job -> allocation.allocateOnly(maidId, allocationRequest(job, constraints, maidId),
                             AssignmentStatus.HELD),
@@ -103,6 +108,9 @@ public class BookingService {
                             Map.of("maidId", maidId)));
         }
         planned.forEach(job -> booking.addJob(job.id()));
+        if (subscription != null) {
+            subscriptions.save(subscription);
+        }
         bookings.save(booking);
         planned.forEach(jobs::save);
         return new BookingDetails(booking, planned);
@@ -118,24 +126,43 @@ public class BookingService {
                 .map(booking -> new BookingDetails(booking, jobs.findByBooking(booking.id()))).toList();
     }
 
-    /** Prices and reserves every planned job; if any reservation fails, the ones already made are released. */
+    /**
+     * Prices and reserves every planned job. Only the first job (the one paid now) gets the payment hold; later
+     * visits of a series are kept until they are charged. If any visit has no room, every reservation is
+     * released and the error lists each clashing date.
+     */
     private List<Job> reserveAll(CreateBookingRequest request, BookingTypeHandler handler, BookingPlan plan,
                                  Zone zone, String bookingId, LocalDateTime holdUntil) {
         Duration buffer = travel.estimate(zone, zone).orElseThrow();
         boolean instant = handler.allocationMode() == AllocationMode.DISPATCH_NOW;
         List<Job> planned = new ArrayList<>();
+        List<String> clashes = new ArrayList<>();
+        ConflictException firstClash = null;
         try {
-            for (TimeSlot slot : plan.jobSlots()) {
+            for (int i = 0; i < plan.jobSlots().size(); i++) {
+                TimeSlot slot = plan.jobSlots().get(i);
+                LocalDateTime hold = i == 0 ? holdUntil : null;
                 String jobId = newId("j-");
                 Money price = pricing.price(new PriceQuery(request.service(), request.tier(), slot, zone.id(), instant));
-                String reservationId = capacity.reserve(zone.id(), request.service(), slot.withBufferBefore(buffer),
-                        jobId, holdUntil).id();
-                planned.add(new Job(jobId, bookingId, zone.id(), request.service(), slot, price, reservationId,
-                        "%04d".formatted(random.nextInt(10_000)), holdUntil));
+                try {
+                    String reservationId = capacity.reserve(zone.id(), request.service(),
+                            slot.withBufferBefore(buffer), jobId, hold).id();
+                    planned.add(new Job(jobId, bookingId, zone.id(), request.service(), slot, price, reservationId,
+                            "%04d".formatted(random.nextInt(10_000)), hold));
+                } catch (ConflictException clash) {
+                    firstClash = firstClash == null ? clash : firstClash;
+                    clashes.add(slot.start().toLocalDate().toString());
+                }
             }
         } catch (RuntimeException e) {
             planned.forEach(job -> capacity.release(job.reservationId()));
             throw e;
+        }
+        if (firstClash != null) {
+            planned.forEach(job -> capacity.release(job.reservationId()));
+            throw plan.jobSlots().size() == 1 ? firstClash : new ConflictException(ErrorCode.SLOT_UNAVAILABLE,
+                    "No capacity on " + String.join(", ", clashes) + "; nothing was booked",
+                    Map.of("conflictDates", clashes));
         }
         return planned;
     }

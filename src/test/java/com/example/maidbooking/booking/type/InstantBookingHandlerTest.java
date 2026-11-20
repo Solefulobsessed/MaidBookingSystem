@@ -65,7 +65,7 @@ class InstantBookingHandlerTest {
 
     private static CreateBookingRequest instant(Integer minutes) {
         return new CreateBookingRequest(BookingType.INSTANT, "c-1", "Koramangala", "Flat 302", ServiceType.CLEANING,
-                null, null, minutes, Map.of("gender", "FEMALE"), null);
+                null, null, minutes, Map.of("gender", "FEMALE"), null, null);
     }
 
     private static DispatchOption arrivingAt(int hour, int minute) {
@@ -117,7 +117,7 @@ class InstantBookingHandlerTest {
     @Test
     void cannotChooseTheMaid() {
         CreateBookingRequest withMaid = new CreateBookingRequest(BookingType.INSTANT, "c-1", "Koramangala", "Flat 302",
-                ServiceType.CLEANING, null, null, 60, null, "m-7f3a");
+                ServiceType.CLEANING, null, null, 60, null, "m-7f3a", null);
 
         assertThatThrownBy(() -> handler.validate(withMaid, NOW))
                 .isInstanceOf(ValidationException.class).hasMessageContaining("scheduled slot");

@@ -11,8 +11,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +36,7 @@ import com.example.maidbooking.booking.CreateBookingRequest;
 import com.example.maidbooking.booking.Job;
 import com.example.maidbooking.common.ClockConfig;
 import com.example.maidbooking.common.Money;
+import com.example.maidbooking.common.RecurrenceRule;
 import com.example.maidbooking.common.TimeSlot;
 import com.example.maidbooking.common.error.NotFoundException;
 import com.example.maidbooking.discovery.filter.MaidFilter;
@@ -113,5 +119,36 @@ class BookingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bookingId").value("b-91"))
                 .andExpect(jsonPath("$[0].type").value("SCHEDULED"));
+    }
+
+    @Test
+    void recurrenceIsMappedToARule() throws Exception {
+        given(bookingService.create(any())).willReturn(scheduled());
+
+        mvc.perform(post("/api/v1/bookings").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"type": "RECURRING", "customerId": "c-1", "locality": "koramangala", "address": "Flat 302",
+                         "serviceType": "CLEANING",
+                         "recurrence": {"daysOfWeek": ["MONDAY", "FRIDAY"], "startTime": "09:00", "durationMinutes": 60,
+                                        "startDate": "2026-11-23", "endDate": "2027-02-28"}}
+                        """))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<CreateBookingRequest> sent = ArgumentCaptor.forClass(CreateBookingRequest.class);
+        verify(bookingService).create(sent.capture());
+        assertThat(sent.getValue().recurrence()).isEqualTo(new RecurrenceRule(Set.of(DayOfWeek.MONDAY, DayOfWeek.FRIDAY),
+                LocalTime.of(9, 0), Duration.ofMinutes(60), LocalDate.of(2026, 11, 23), LocalDate.of(2027, 2, 28)));
+    }
+
+    @Test
+    void incompleteRecurrenceIs400() throws Exception {
+        mvc.perform(post("/api/v1/bookings").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"type": "RECURRING", "customerId": "c-1", "locality": "koramangala", "address": "Flat 302",
+                         "serviceType": "CLEANING",
+                         "recurrence": {"daysOfWeek": ["MONDAY"], "startTime": "09:00",
+                                        "startDate": "2026-11-23", "endDate": "2027-02-28"}}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+        verifyNoInteractions(bookingService);
     }
 }
