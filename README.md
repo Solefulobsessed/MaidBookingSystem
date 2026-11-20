@@ -33,6 +33,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-07 Maid entity
 - [x] PR-40 Idempotency store
 - [x] PR-08 Maid onboarding API
-- [ ] PR-09 Shift entity
+- [x] PR-09 Shift entity
+- [ ] PR-10 Shift templates
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

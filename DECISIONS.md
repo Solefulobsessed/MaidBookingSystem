@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 10 | Generating shifts skips template windows that clash with an existing shift (and reports how many) instead of failing | Re-running generation for the same weeks is safe and creates no duplicates; manual shifts win over the template |
+| 10 | Generation covers at most 31 days per call, never starts in the past, and runs under the maid's lock | Bounded work per request; two generations for one maid can't create overlapping shifts |
+| 10 | A template is stored per maid (`WeeklyShiftTemplate`) and replaced as a whole | Simpler than editing single windows; matches `PUT /shift-template` in the spec |
 | 09 | Shift transitions: PLANNED → CHECKED_IN → ENDED; PLANNED → ABSENT or CANCELLED. Only PLANNED and CHECKED_IN add capacity | Matches the spec; a maid who checked in can't be cancelled, she ends her shift instead |
 | 09 | Shifts are 2–10 hours and must end on the day they start (so 20:00–01:00 is two shifts) | Spec input rule; keeps a shift's capacity inside one day's buckets |
 | 09 | `ShiftChanged` is a plain record (CAPACITY_ADDED / CAPACITY_REMOVED); the service that changes shifts publishes it | The supply package never calls the capacity package; the ledger listens instead |
