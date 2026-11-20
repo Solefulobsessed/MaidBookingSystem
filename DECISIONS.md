@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 24 | Travel score = 1 − travel minutes / 60 (same zone 0.75, neighbour 0.5, out of reach 0), measured from her previous job's zone, else her shift's zone | Shorter trips mean more jobs per day and fewer late arrivals |
+| 24 | Fairness score = 1 / (1 + her jobs that day) | Spec's starvation score: spreads work so no maid sits idle while others are overloaded |
+| 24 | Rating score = rating / 5; unrated maids get a neutral 0.5 | New maids must still get jobs to earn a rating |
+| 24 | Default weights: travel 1.0, fairness 0.5, rating 0.5 (best fit 1.0, preferred 10.0) | Proximity and packing matter most for utilisation; fairness and rating break near-ties. Tune in `application.yml` |
 | 23 | `AllocationRequest` and `Candidate` land here (planned for PR-26) | Scoring rules need the job and the candidate's shift, calendar and blocked time; defining them once avoids a throwaway type |
 | 23 | Best-fit score = 1 / (1 + idle minutes left around the job / 30): 0 idle → 1.0, 30 min → 0.5 | Smaller leftover gaps pack calendars tighter and keep big gaps free (Urban Company's best fit); bounded 0–1 like every rule |
 | 23 | Weights in `app.allocation.weights`: best-fit-gap 1.0, preferred-maid 10.0; a rule without a weight counts 1.0; ties go to the lower maid id | The preferred maid should win whenever she can do the job; deterministic ties make tests and support repeatable |
