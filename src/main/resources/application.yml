@@ -20,6 +20,7 @@ app:
   booking:
     min-lead-minutes: 120
     max-advance-days: 30
+    hold-minutes: 10
   instant:
     promise-minutes: 15
   allocation:

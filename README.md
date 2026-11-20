@@ -56,6 +56,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-29 Instant dispatch
 - [x] PR-30 Job state machine
 - [x] PR-31 Booking aggregate
-- [ ] PR-32 Booking type registry
+- [x] PR-32 Booking type registry
+- [ ] PR-33 Create booking
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

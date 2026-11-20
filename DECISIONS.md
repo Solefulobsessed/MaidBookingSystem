@@ -4,6 +4,13 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 33 | A job reserves its slot plus the same-zone travel buffer (15 min) before it, held for `app.booking.hold-minutes` (10) | Matches the spec's ledger example (a 09:00 job also takes 15 min of the 08:30 bucket) and its 10-minute payment hold |
+| 33 | All-or-nothing: if any job's reservation fails, the reservations already made are released and nothing is saved | The booking is never left half-reserved; the customer gets the `SLOT_UNAVAILABLE` conflict as is |
+| 33 | Request checks (type rules, locality, preferences) run before any capacity is reserved | A bad request costs nothing and never touches the ledger |
+| 33 | Booking ids are `b-` and job ids `j-` + 8 hex characters; each job gets a random 4-digit OTP from `SecureRandom` | Same id style as maids and shifts; the OTP must not be guessable |
+| 33 | `PriceQuery.instant` is true when the handler's mode is DISPATCH_NOW | Keeps the template free of booking-type checks; instant pricing follows how the job is served |
+| 33 | `amountDueNow` = price of the earliest unpaid job | One job for instant and scheduled; for recurring, the customer pays the first visit at creation (spec) |
+| 33 | Responses list each job's start and end separately, plus its OTP for the customer | Easier to read and parse than the spec's `09:00/10:00` slot string; the customer shows the OTP to the maid |
 | 32 | `CreateBookingRequest` is a record in the `booking` package; the controller (PR-33) maps its JSON onto it | Handlers live in the domain and must not depend on `api` DTOs; fields a type doesn't use stay null and each handler checks its own |
 | 32 | `BookingPlan` holds only the job slots for now; the `Subscription` part is added with recurring bookings (PR-36) | No subscription type exists yet; adding the field then keeps this PR free of placeholders |
 | 32 | A booking type with no handler bean is a 400 `VALIDATION_FAILED`; two handlers for one type stop the app at startup | Instant and recurring arrive in later PRs, so asking for them now is a client error, while a duplicate handler is a wiring bug |
