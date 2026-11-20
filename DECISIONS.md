@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 11 | Leave is whole days (both dates inclusive) and can't start in the past | Matches the spec's `Leave(maidId, from, to)`; part-day sickness is a separate, not-yet-approved "end shift early" feature |
+| 11 | Leave cancels only PLANNED shifts; a CHECKED_IN shift is left for the maid to end | She is already working; cancelling would be an illegal transition |
+| 11 | Re-allocating jobs on cancelled shifts is not done here | Assignments don't exist yet; PR-47 adds the leave listener that releases and re-assigns jobs |
 | 10 | Generating shifts skips template windows that clash with an existing shift (and reports how many) instead of failing | Re-running generation for the same weeks is safe and creates no duplicates; manual shifts win over the template |
 | 10 | Generation covers at most 31 days per call, never starts in the past, and runs under the maid's lock | Bounded work per request; two generations for one maid can't create overlapping shifts |
 | 10 | A template is stored per maid (`WeeklyShiftTemplate`) and replaced as a whole | Simpler than editing single windows; matches `PUT /shift-template` in the spec |

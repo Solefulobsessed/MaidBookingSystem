@@ -25,17 +25,19 @@ public class ShiftService {
     private final ZoneRepository zones;
     private final ShiftRepository shifts;
     private final WeeklyShiftTemplateRepository templates;
+    private final LeaveRepository leaves;
     private final LockRegistry locks;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public ShiftService(MaidRepository maids, ZoneRepository zones, ShiftRepository shifts,
-                        WeeklyShiftTemplateRepository templates, LockRegistry locks,
+                        WeeklyShiftTemplateRepository templates, LeaveRepository leaves, LockRegistry locks,
                         ApplicationEventPublisher events, Clock clock) {
         this.maids = maids;
         this.zones = zones;
         this.shifts = shifts;
         this.templates = templates;
+        this.leaves = leaves;
         this.locks = locks;
         this.events = events;
         this.clock = clock;
@@ -55,9 +57,14 @@ public class ShiftService {
         return locks.callWith(LockKey.maid(maidId), () -> {
             List<Shift> created = new ArrayList<>();
             int skipped = 0;
+            int onLeave = 0;
             for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
                 for (ShiftTemplate window : template.windows()) {
                     if (window.day() != date.getDayOfWeek()) {
+                        continue;
+                    }
+                    if (leaves.isOnLeave(maidId, date)) {
+                        onLeave++;
                         continue;
                     }
                     TimeSlot slot = new TimeSlot(date.atTime(window.start()), date.atTime(window.end()));
@@ -68,7 +75,33 @@ public class ShiftService {
                     created.add(create(maidId, window.zoneId(), slot));
                 }
             }
-            return new ShiftGenerationResult(created, skipped);
+            return new ShiftGenerationResult(created, skipped, onLeave);
+        });
+    }
+
+    /**
+     * Records whole-day leave and cancels the maid's PLANNED shifts on those days, announcing each
+     * so their capacity is removed. A shift she has already checked in to is left for her to end.
+     */
+    public LeaveResult addLeave(String maidId, LocalDate from, LocalDate to, String reason) {
+        maids.getById(maidId);
+        if (from.isBefore(LocalDate.now(clock))) {
+            throw new ValidationException("Leave cannot start in the past (" + from + ")");
+        }
+        Leave leave = new Leave("l-" + UUID.randomUUID().toString().substring(0, 8), maidId, from, to, reason);
+        return locks.callWith(LockKey.maid(maidId), () -> {
+            leaves.save(leave);
+            List<Shift> cancelled = new ArrayList<>();
+            for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
+                for (Shift shift : shifts.findByMaidAndDate(maidId, date)) {
+                    if (shift.status() == ShiftStatus.PLANNED) {
+                        shift.cancel();
+                        events.publishEvent(ShiftChanged.removed(shift));
+                        cancelled.add(shift);
+                    }
+                }
+            }
+            return new LeaveResult(leave, cancelled);
         });
     }
 
