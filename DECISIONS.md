@@ -4,6 +4,10 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 26 | Find and rank without locks, then re-check the chosen maid under **her** lock with the same `CandidateFinder.candidate` rules; on failure try the next | Short locks, no stale decisions; one maid's lock at a time keeps the lock order safe |
+| 26 | `allocate` returns the existing live assignment for the same job instead of making a second one | Retries (scheduler, payment replays) can't double-book a job |
+| 26 | `AllocationService` takes maid locks only; callers must not hold a job lock when calling it | Lock order zone → maid → job: booking code allocates first, then updates the job |
+| 26 | One `AllocationStrategy` bean (best fit) instead of a `allocation.strategy` switch | Only one strategy exists; replacing the bean is the extension point |
 | 25 | Candidates come from live shifts in the job's zone and its neighbours (own zone first, then neighbours by id); a maid appears once | Spec: maids work their zone or a neighbour; a fixed order keeps allocation repeatable |
 | 25 | Travel is measured from her previous job's zone, else her shift's zone; her shift must cover travel + job; the gap to her next job must cover the travel there | The maid must physically make every job on time |
 | 25 | A neighbour-zone maid can fill a job whose capacity was reserved in the job's zone | Spec allows neighbour allocation; capacity stays per zone (a known simplification noted for later work) |
