@@ -4,6 +4,12 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 39 | A `Payment` is one attempt; a declined attempt stays FAILED and a retry creates a new one (with a new idempotency key) | Keeps an honest history; the job links to the payment that succeeded |
+| 39 | Card details are number + expiry only; the number must be 12–19 digits and pass the Luhn check; the gateway sees only `**** 1234` | The CVV goes from the app straight to the provider (PCI), so this backend never handles it |
+| 39 | UPI IDs must look like `name@bank` (bank letters only); wallets must be PAYTM, PHONEPE, AMAZONPAY or MOBIKWIK with an Indian mobile number | Simple, testable rules; the provider list is a constant until there is a real integration |
+| 39 | `PaymentDetails` records carry their own `method()`; processors share gateway plumbing in `GatewayPaymentProcessor` | No `switch` from details to method; each processor is only its checks and its masked label |
+| 39 | A refund's gateway key is `paymentId:refund:<refunded so far>:<amount>` | Retrying the same refund replays it at the gateway; the next partial refund gets a new key |
+| 39 | Over-refunding or refunding zero is an `IllegalArgumentException`; refunding a payment that never succeeded is `InvalidStateTransitionException` | Refund amounts come from the cancellation policy, so a bad amount is a bug, not client input |
 | 38 | A gateway decline is a `GatewayResult` (approved = false, reason); an outage is `GatewayUnavailableException` (502 `GATEWAY_ERROR`) | A decline is a normal answer the payment service records (402 to the client); an outage means "nothing happened, retry" |
 | 38 | `MockPaymentGateway` remembers each key's request and result: same key + same request replays it, a different request under the same key is a programming error (`IllegalArgumentException`); outages are not remembered | Mirrors real providers' idempotency keys; the idempotency store above it already turns key reuse into 422 for clients |
 | 38 | Failures are scripted with `declineNext(reason)` / `failNext()`, and any instrument ending in `decline` (e.g. UPI `decline@okbank`) is declined | Tests control outcomes exactly; the magic suffix lets a demo show a decline through the API |
