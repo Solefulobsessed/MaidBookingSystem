@@ -39,6 +39,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-12 Supply endpoints
 - [x] PR-13 Live state
 - [x] PR-14 Capacity buckets
-- [ ] PR-15 Capacity ledger
+- [x] PR-15 Capacity ledger
+- [ ] PR-16 Reserve / commit / release
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
