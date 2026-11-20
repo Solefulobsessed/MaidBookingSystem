@@ -12,6 +12,8 @@ app:
     neighbour-zone-minutes: 30
   idempotency:
     ttl-hours: 24
+  shift:
+    early-check-in-minutes: 30
 
 management:
   endpoints:

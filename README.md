@@ -36,6 +36,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-09 Shift entity
 - [x] PR-10 Shift templates
 - [x] PR-11 Leave
-- [ ] PR-12 Supply endpoints
+- [x] PR-12 Supply endpoints
+- [ ] PR-13 Live state
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.

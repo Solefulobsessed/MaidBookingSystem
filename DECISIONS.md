@@ -4,6 +4,9 @@ Choices made during implementation that `docs/SPEC.md` does not dictate. Newest 
 
 | PR | Decision | Why |
 | --- | --- | --- |
+| 13 | `PUT /live-state` takes a target status; a maid may only set IDLE, BREAK or OFFLINE. EN_ROUTE / ON_JOB are reserved for the job lifecycle | Matches the spec's endpoint; job statuses must come from real jobs |
+| 13 | OFFLINE → IDLE is check-in: it needs a PLANNED shift starting within 30 min (`app.shift.early-check-in-minutes`) and starts that shift. Going OFFLINE ends any checked-in shift | Spec: check-in requires a shift today; maids often arrive a little early |
+| 13 | Live-state transitions are a table in `MaidLiveState` (EnumMap of allowed moves) | Keeps rules in the entity and readable at a glance |
 | 12 | `POST /maids/{id}/shifts` adds one shift from a JSON body; with `?generateFrom=&to=` (no body) it generates from the template | Matches the spec's single endpoint; Spring routes on the query parameters |
 | 12 | A hand-added shift that overlaps another or falls on a leave day is a 409 `SHIFT_CONFLICT` (generation skips instead) | A person adding one shift should be told why it failed; bulk generation should be repeatable |
 | 12 | Shift, template and leave endpoints live in one `SupplyController` under `/api/v1/maids/{maidId}` | All are about one maid's working time; keeps `MaidController` to the profile |
