@@ -27,8 +27,8 @@ class MockPaymentGatewayTest {
     }
 
     @Test
-    void declinesAnInstrumentEndingInDecline() {
-        GatewayResult result = gateway.charge(charge("k-1", 249, "UPI:decline"));
+    void declinesAnInstrumentContainingDecline() {
+        GatewayResult result = gateway.charge(charge("k-1", 249, "UPI:decline@okbank"));
 
         assertThat(result.approved()).isFalse();
         assertThat(result.gatewayRef()).isNull();

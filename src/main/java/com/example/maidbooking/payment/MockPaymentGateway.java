@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
 import com.example.maidbooking.common.Money;
 
 /**
- * In-memory stand-in for a real provider. Approves by default; an instrument ending in {@code decline}
- * (e.g. {@code UPI:decline}) is declined, which makes failures easy to demo. Tests can script the next calls
+ * In-memory stand-in for a real provider. Approves by default; an instrument containing {@code decline}
+ * (e.g. UPI {@code decline@okbank}) is declined, which makes failures easy to demo. Tests can script the next calls
  * with {@link #declineNext} and {@link #failNext}. Results are remembered per idempotency key.
  */
 @Component
@@ -50,7 +50,7 @@ public class MockPaymentGateway implements PaymentGateway {
     @Override
     public synchronized GatewayResult charge(GatewayChargeRequest request) {
         return once(request.idempotencyKey(), request, () -> {
-            if (request.instrument().endsWith("decline")) {
+            if (request.instrument().contains("decline")) {
                 return GatewayResult.declined("Declined by issuer");
             }
             String ref = "pay_" + UUID.randomUUID().toString().substring(0, 12);

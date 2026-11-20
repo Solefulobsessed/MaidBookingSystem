@@ -77,7 +77,11 @@ public class IdempotencyStore {
             entries.put(key, new Entry(claim.requestHash(), State.COMPLETED, response, null, claim.createdAt()));
             return response;
         } catch (DomainException businessError) {
-            entries.put(key, new Entry(claim.requestHash(), State.FAILED, null, businessError, claim.createdAt()));
+            if (businessError.code() == ErrorCode.GATEWAY_ERROR) {
+                entries.remove(key, claim);  // nothing was charged, so the same key may be retried
+            } else {
+                entries.put(key, new Entry(claim.requestHash(), State.FAILED, null, businessError, claim.createdAt()));
+            }
             throw businessError;
         } catch (RuntimeException unexpected) {
             entries.remove(key, claim);
