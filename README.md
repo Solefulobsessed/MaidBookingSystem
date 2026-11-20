@@ -61,6 +61,7 @@ Implementation follows [docs/PR_PLAN.md](docs/PR_PLAN.md). Merged so far:
 - [x] PR-34 Instant booking
 - [x] PR-35 Preferred maid
 - [x] PR-36 Recurring booking
-- [ ] PR-37 Subscription generation
+- [x] PR-37 Subscription generation
+- [ ] PR-38 Payment gateway
 
 The README is completed in PR-52 with design notes, assumptions and a demo script.
